@@ -17,11 +17,18 @@ class DataStore:
         """
         Number of files for training data
         """
-        self.label_data_dict = None
+        self.data_dict = None
+        """
+        A dictionary with 'train', 'val' & 'test' as keys
+        Each value in this dictionary in turn is a dictionary with following structure
+        'data': numpy array of data
+        'labels':   numpy array of labels in same order as data
+        """
+        self.label_details_dict = None
         """
         Dictionary with label indices as keys.
         Each value is a dictionary with following keys:
-        'name', 'train_instance_list', 'val_instance_list' & 'test_instance_list'
+        'name'
         """
         self.validation_fraction = validation_fraction
         """
@@ -30,48 +37,73 @@ class DataStore:
 
     def load_data(self):
         """
-        Loads training and test data from the `data_dir` and resets 'label_data_dict'
+        Loads training and test data from the `data_dir` and resets 'data_dict' & 'label_details_dict'
         """
         print("Loading data...")
 
-        self.label_data_dict = {}
+        label_data_dict = {}
+        self.label_details_dict = {}
         meta_filename = "batches.meta"
         label_name_list = unpickle(os.path.join(self.data_dir, meta_filename))['label_names']
         for ii, label_name in enumerate(label_name_list):
-            self.label_data_dict[ii] = {
-                'name': label_name,
+            label_data_dict[ii] = {
                 'train_instance_list':  [],
                 'val_instance_list': [],
                 'test_instance_list':   []
+            }
+            self.label_details_dict[ii] = {
+                'name': label_name
             }
 
         base_filename = "data_batch_"
         for ii in range(1, self.num_train_files+1):
             filename = base_filename + str(ii)
-            data_dict = unpickle(os.path.join(self.data_dir, filename))
-            for jj, label_idx in enumerate(data_dict['labels']):
-                self.label_data_dict[label_idx]['train_instance_list'].append(data_dict['data'][jj])
+            train_data_dict = unpickle(os.path.join(self.data_dir, filename))
+            for jj, label_idx in enumerate(train_data_dict['labels']):
+                label_data_dict[label_idx]['train_instance_list'].append(train_data_dict['data'][jj])
 
         test_filename = "test_batch"
-        data_dict = unpickle(os.path.join(self.data_dir, test_filename))
-        for jj, label_idx in enumerate(data_dict['labels']):
-            self.label_data_dict[label_idx]['test_instance_list'].append(data_dict['data'][jj])
+        test_data_dict = unpickle(os.path.join(self.data_dir, test_filename))
+        for jj, label_idx in enumerate(test_data_dict['labels']):
+            label_data_dict[label_idx]['test_instance_list'].append(test_data_dict['data'][jj])
 
         print("Done.")
 
-    def create_validation_set(self):
+        label_data_dict = self.create_validation_set(label_data_dict)
+
+        key_list = ['train', 'val', 'test']
+        self.data_dict = {
+            key: {'data': [], 'labels': []} for key in key_list
+            }
+
+        print("Converting your data into consumable format...")
+        # populate data_dict
+        for label_idx in label_data_dict.keys():
+            for key in key_list:
+                self.data_dict[key]['data'].extend(label_data_dict[label_idx][key + '_instance_list'])
+                self.data_dict[key]['labels'].extend(
+                    [label_idx for _ in range(len(label_data_dict[label_idx][key + '_instance_list']))]
+                )
+
+        for key in key_list:
+            self.data_dict[key]['data'] = np.array(self.data_dict[key]['data'], dtype=np.float)
+            self.data_dict[key]['labels'] = np.array(self.data_dict[key]['labels'])
+        print("Done")
+
+    def create_validation_set(self, label_data_dict):
         """
-        Splits the training data loaded in 'label_data_list' into training and validation
+        Splits the training data loaded in 'label_data_dict' into training and validation
         Updates 'label_data_dict' accordingly
         """
         print("Splitting training set into training and validation sets...")
-        for label in self.label_data_dict.keys():
-            train_instance_list = self.label_data_dict[label]['train_instance_list']
+        for label in label_data_dict.keys():
+            train_instance_list = label_data_dict[label]['train_instance_list']
             random.shuffle(train_instance_list)
             num_validation = int(len(train_instance_list) * self.validation_fraction)
-            self.label_data_dict[label]['val_instance_list'] = train_instance_list[0:num_validation]
-            self.label_data_dict[label]['train_instance_list'] = train_instance_list[num_validation:]
+            label_data_dict[label]['val_instance_list'] = train_instance_list[0:num_validation]
+            label_data_dict[label]['train_instance_list'] = train_instance_list[num_validation:]
         print("Done.")
+        return label_data_dict
 
     def get_data(self, zero_centre=True, normalize=True):
         """
@@ -85,43 +117,27 @@ class DataStore:
         """
 
         # Make sure that data is loaded
-        if self.label_data_dict is None:
+        if self.data_dict is None:
             self.load_data()
-            self.create_validation_set()
 
         key_list = ['train', 'val', 'test']
-        data_dict = {
-            key:    {'data':    [], 'labels':   []} for key in key_list
-        }
-
-        # populate data_dict
-        for label_idx in self.label_data_dict.keys():
-            for key in key_list:
-                data_dict[key]['data'].extend(self.label_data_dict[label_idx][key + '_instance_list'])
-                data_dict[key]['labels'].extend(
-                    [label_idx for _ in range(len(self.label_data_dict[label_idx][key + '_instance_list']))]
-                )
-
-        for key in key_list:
-            data_dict[key]['data'] = np.array(data_dict[key]['data'], dtype=np.float)
-            data_dict[key]['labels'] = np.array(data_dict[key]['labels'], dtype=np.float)
 
         if zero_centre:
             print("Zero centering the data...")
-            train_mean = np.mean(data_dict['train']['data'], axis=0)
+            train_mean = np.mean(self.data_dict['train']['data'], axis=0)
             for key in key_list:
-                if len(data_dict[key]['data']) != 0:
-                    data_dict[key]['data'] -= train_mean
+                if len(self.data_dict[key]['data']) != 0:
+                    self.data_dict[key]['data'] -= train_mean
             print("Done.")
 
         if normalize:
             print("Normalizing the data...")
-            train_std_dev = np.std(data_dict['train']['data'], axis=0)
+            train_std_dev = np.std(self.data_dict['train']['data'], axis=0)
             for key in key_list:
-                data_dict[key]['data'] /= train_std_dev
+                self.data_dict[key]['data'] /= train_std_dev
             print("Done.")
 
-        return data_dict
+        return self.data_dict
 
 
 def unpickle(filename):
