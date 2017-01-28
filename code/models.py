@@ -1,3 +1,6 @@
+import util
+
+
 class RMLR:
     """
     Classifier that uses Regularized Multinomial Logistic Regression
