@@ -29,7 +29,7 @@ class Layer:
     def forward_pass(self, X):
         pass
 
-    def back_propagation(self):
+    def back_propagation(self, f, d):
         pass
 
     def get_input_layer(self):
@@ -101,6 +101,17 @@ class Softmax(Activation):
         """
         row_sum = np.sum(np.exp(X), axis=1)
         return np.exp(X) / row_sum[:, None]
+
+    def back_propagation(self, f, d):
+        """
+
+        :param f:   Output of this layer during forward pass (N x C)
+        :param d:   Gradients being passed back (N x C)
+        :return: N x C numpy array of gradients
+        """
+        fd = f * d
+        sum_fd = np.sum(fd, axis=1)
+        return f * (d - sum_fd[:, None])
 
 
 class Sigmoid(Activation):
@@ -199,10 +210,9 @@ class CrossEntropy(Loss):
         """
         :param Y: Actual outputs (categorical) (N x C)
         :param O: Predicted outputs (N x C)
-        :return:   Average gradient numpy array (1 x C)
+        :return:   Gradient numpy array (N x C)
         """
-        n = Y.shape[0]
-        return np.sum(-Y / O, axis=0) / n
+        return -Y / O
 
 
 class Hinge(Loss):
@@ -223,7 +233,7 @@ class Hinge(Loss):
         """
         :param Y: Actual outputs (categorical) (N x C)
         :param O: Predicted outputs (N x C)
-        :return:   Average gradient numpy array (1 x C)
+        :return:   Gradient numpy array (N x C)
         """
         # TODO Compute and return the gradients for hinge loss
         pass
