@@ -1,5 +1,3 @@
-from tqdm import tqdm
-
 import data_processor
 import layers
 import models
@@ -13,11 +11,13 @@ def run_rmlr_experiments():
     data_store = data_processor.DataStore()
     data_dict = data_store.get_data()
 
-    batch_size_list = [10, 50, 100, 200, 400, 800]
-    lr_list = [pow(10, -1 * ii) for ii in range(6, 10)]
+    # batch_size_list = [10, 50, 100, 200, 400, 800]
+    # lr_list = [pow(10, -1 * ii) for ii in range(6, 10)]
+    batch_size = 100
+    lr = 1e-6
 
-    num_epochs = 600
-    lambda_ = 0.001
+    num_epochs = 500
+    lambda_list = [pow(5, -1 * ii) for ii in range(0, 9)] + [0]
 
     log_filename = '../results/rmlr_batch_lr.csv'
     util.log(log_filename, 'lr,batch_size,epoch#,train_acc,val_acc')
@@ -30,14 +30,16 @@ def run_rmlr_experiments():
     val_X = data_dict['val']['data']
     val_Y = data_dict['val']['labels']
 
-    for lr in tqdm(lr_list):
-        for batch_size in tqdm(batch_size_list):
-            print("Learning Rate: " + str(lr) + ", Batch Size: " + str(batch_size))
-            print("\n---------------------------------------------------------\n")
-            train_acc, val_acc, epoch = rmlr.train(train_X, train_Y, lr, batch_size, num_epochs, lambda_,
-                                                   val_X, val_Y, True)
-            util.log(log_filename,
-                     str(lr) + "," + str(batch_size) + "," + str(epoch) + "," + str(train_acc) + "," + str(val_acc))
+    for lambda_ in lambda_list:
+        print("\n---------------------------------------------------------\n")
+        print("Learning Rate: " + str(lr) + ", Batch Size: " + str(batch_size)
+              + ", Weight Decay: " + str(lambda_) + "\n")
+        train_acc, val_acc, epoch = rmlr.train(train_X, train_Y, lr, batch_size, num_epochs, lambda_,
+                                               val_X, val_Y, reinit_weights=True, print_acc=False)
+        util.log(log_filename,
+                 str(lr) + "," + str(batch_size) + "," + str(epoch) + "," + str(train_acc) + "," + str(val_acc))
+
+        print("\nBest Validation Accuracy: " + str(val_acc) + ", Training accuracy: " + str(train_acc))
 
 
 def create_model(input_shape, weight_decay):

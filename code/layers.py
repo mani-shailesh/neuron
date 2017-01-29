@@ -84,7 +84,7 @@ class Dense(Layer):
         self.weight_decay = weight_decay
         weight_shape = (self.h, self.input_shape[1])
         self.w = np.random.standard_normal(weight_shape) / np.sqrt(self.input_shape[1])
-        self.b = np.random.standard_normal((self.h, 1)) / np.sqrt(self.input_shape[1])  # bias weights
+        self.b = np.zeros((self.h, 1))  # bias weights
 
     def get_output_shape(self):
         """

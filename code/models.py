@@ -18,9 +18,11 @@ class RMLR:
         """
         pass
 
-    def train(self, X, Y, lr, batch_size, num_epochs, lambda_, val_X=None, val_Y=None, reinit_weights=False):
+    def train(self, X, Y, lr, batch_size, num_epochs, lambda_, val_X=None, val_Y=None,
+              reinit_weights=False, print_acc=True):
         """
         Train the model using 'X' as training data and 'Y' as labels
+        :param print_acc: Print to console if True
         :param X: numpy array of feature vectors
         :param Y: list of actuals label indices
         :param lr:  learning rate float (> 0)
@@ -45,7 +47,8 @@ class RMLR:
         # Initialize the weights
         if reinit_weights or self.W is None:
             w_shape = (self.num_classes, d)
-            self.W = np.zeros(w_shape)
+            self.W = np.random.standard_normal(w_shape) / np.sqrt(d)
+            self.W[:, 0] = 0
 
         print("Starting training...")
 
@@ -55,8 +58,9 @@ class RMLR:
 
         util.log(self.log_file, "epoch,train_acc,val_acc")
 
-        for epoch_idx in range(num_epochs):
-            print("Performing epoch #" + str(epoch_idx + 1))
+        for epoch_idx in tqdm(range(num_epochs)):
+            if print_acc:
+                print("Performing epoch #" + str(epoch_idx + 1))
 
             # Shuffle training data and labels
             perm = np.random.permutation(n)
@@ -83,9 +87,11 @@ class RMLR:
 
             util.log(self.log_file,
                      str(epoch_idx + 1) + "," + str(train_acc) + "," + str(val_acc))
-            print("Training accuracy: " + str(train_acc))
-            print("Validation accuracy: " + str(val_acc))
-            print("\n------------------------------------\n")
+
+            if print_acc:
+                print("Training accuracy: " + str(train_acc))
+                print("Validation accuracy: " + str(val_acc))
+                print("\n------------------------------------\n")
 
         print("Training completed.")
         return best_train_acc, best_val_acc, best_epoch
