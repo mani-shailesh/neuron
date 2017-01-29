@@ -65,7 +65,7 @@ class Dense(Layer):
         """
         Layer.__init__(self, *args, **kwargs)
         self.h = num_units
-        weight_shape = (self.h, self.input_shape[1] + 1)
+        weight_shape = (self.h, self.input_shape[1] + 1)  # Accounting for the bias term
         self.w = np.zeros(weight_shape)
 
     def get_output_shape(self):
@@ -82,6 +82,8 @@ class Dense(Layer):
         :param X: input numpy array
         :return: numpy array
         """
+
+        # Adding a dummy feature for bias
         X = util.add_dummy_feature(X)
         return np.dot(X, np.transpose(self.w))
 
@@ -163,3 +165,65 @@ class Tanh(Activation):
         :return: numpy array of shape same as input
         """
         return np.tanh(X)
+
+
+class Loss:
+    """
+    Base class for Loss functions
+    """
+
+    def __init__(self):
+        pass
+
+    def get_loss_value(self, Y, O):
+        pass
+
+    def get_gradient(self, Y, O):
+        pass
+
+
+class CrossEntropy(Loss):
+    """
+    Cross-entropy loss
+    """
+
+    def get_loss_value(self, Y, O):
+        """
+        :param Y: Actual outputs (categorical) (N x C)
+        :param O: Predicted outputs (N x C)
+        :return: Column vector (N x 1) of loss values
+        """
+        return -1 * np.c_[np.sum(Y * np.log(O), axis=1)]
+
+    def get_gradient(self, Y, O):
+        """
+        :param Y: Actual outputs (categorical) (N x C)
+        :param O: Predicted outputs (N x C)
+        :return:   Average gradient numpy array (1 x C)
+        """
+        n = Y.shape[0]
+        return np.sum(-Y / O, axis=0) / n
+
+
+class Hinge(Loss):
+    """
+    Hinge loss
+    """
+
+    def get_loss_value(self, Y, O):
+        """
+        :param Y: Actual outputs (categorical) (N x C)
+        :param O: Predicted outputs (N x C)
+        :return: Column vector (N x 1) of loss values
+        """
+        # TODO Compute and return hinge loss value
+        pass
+
+    def get_gradient(self, Y, O):
+        """
+        :param Y: Actual outputs (categorical) (N x C)
+        :param O: Predicted outputs (N x C)
+        :return:   Average gradient numpy array (1 x C)
+        """
+        # TODO Compute and return the gradients for hinge loss
+        pass
