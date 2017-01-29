@@ -105,3 +105,27 @@ class RMLR:
         """
         values = self.predict_values(X)
         return np.argmax(values, axis=1)
+
+
+class Model:
+    """
+    Class to represent a model composed of layers
+    """
+
+    def __init__(self, input_layer, output_layer):
+        """
+        Initialize the model
+        :param input_layer: 'Layer' object to act as the input layer
+        :param output_layer: 'Layer' object to act as the output layer
+        """
+        self.layers = [output_layer]
+        layer = output_layer
+        while layer is not input_layer:
+            layer = layer.get_input_layer()
+            if layer is None:
+                print("Can not find connection from input layer to output layer!")
+                self.layers = []
+                return
+            else:
+                self.layers.append(layer)
+        self.layers.reverse()

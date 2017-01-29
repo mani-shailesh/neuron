@@ -32,6 +32,26 @@ class Layer:
     def back_propagation(self):
         pass
 
+    def get_input_layer(self):
+        """
+        :return: input layer to this layer
+        """
+        return self.input_layer
+
+
+class Activation(Layer):
+    """
+    Base class for activation layers
+    """
+
+    def get_output_shape(self):
+        """
+        Return the output shape of this layer
+        :return: tuple
+        """
+        output_shape = self.input_shape
+        return output_shape
+
 
 class Dense(Layer):
     """
@@ -64,20 +84,6 @@ class Dense(Layer):
         """
         X = util.add_dummy_feature(X)
         return np.dot(X, np.transpose(self.w))
-
-
-class Activation(Layer):
-    """
-    Base class for activation layers
-    """
-
-    def get_output_shape(self):
-        """
-        Return the output shape of this layer
-        :return: tuple
-        """
-        output_shape = self.input_shape
-        return output_shape
 
 
 class Softmax(Activation):
