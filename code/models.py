@@ -7,7 +7,7 @@ class RMLR:
     """
     Classifier that uses Regularized Multinomial Logistic Regression
     """
-    def __init__(self, num_classes, log_filename):
+    def __init__(self, num_classes, log_filename=None):
         self.W = None
         self.num_classes = num_classes
         self.log_file = log_filename
@@ -16,7 +16,7 @@ class RMLR:
         """
         pass
 
-    def train(self, X, Y, lr, batch_size, num_epochs, lambda_, val_X=None, val_Y=None):
+    def train(self, X, Y, lr, batch_size, num_epochs, lambda_, val_X=None, val_Y=None, reinit_weights=False):
         """
         Train the model using 'X' as training data and 'Y' as labels
         :param X: numpy array of feature vectors
@@ -29,6 +29,8 @@ class RMLR:
                         No validation performed if this is None
         :param val_Y:   class labels for validation set
                         Used only if val_X is not None
+        :param reinit_weights: Reinitialize weights iff this is True or weights are None
+        :return Tuple of best validation accuracy, training accuracy at that epoch and the epoch no.
         """
 
         # Add dummy features for bias terms
@@ -39,10 +41,15 @@ class RMLR:
         d = X.shape[1]
 
         # Initialize the weights
-        w_shape = (self.num_classes, d)
-        self.W = np.zeros(w_shape)
+        if reinit_weights or self.W is None:
+            w_shape = (self.num_classes, d)
+            self.W = np.zeros(w_shape)
 
         print("Starting training...")
+
+        best_val_acc = 0
+        best_train_acc = 0
+        best_epoch = 1
 
         util.log(self.log_file, "epoch,train_acc,val_acc")
 
@@ -66,6 +73,11 @@ class RMLR:
             train_acc = util.get_accuracy(Y, self.predict_classes(X))
             val_acc = util.get_accuracy(val_Y, self.predict_classes(val_X))
 
+            if val_acc >= best_val_acc:
+                best_val_acc = val_acc
+                best_train_acc = train_acc
+                best_epoch = epoch_idx + 1
+
             util.log(self.log_file,
                      str(epoch_idx + 1) + "," + str(train_acc) + "," + str(val_acc))
             print("Training accuracy: " + str(train_acc))
@@ -73,6 +85,7 @@ class RMLR:
             print("\n------------------------------------\n")
 
         print("Training completed.")
+        return best_train_acc, best_val_acc, best_epoch
 
     def predict_values(self, X):
         """

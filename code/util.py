@@ -41,5 +41,6 @@ def log(filename, msg):
     :param filename: string - path to file
     :param msg: string - message to log
     """
-    with open(filename, 'a') as logfile:
-        logfile.write(str(msg) + "\n")
+    if filename is not None:
+        with open(filename, 'a') as logfile:
+            logfile.write(str(msg) + "\n")
