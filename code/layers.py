@@ -24,12 +24,26 @@ class Layer:
         self.X = None
 
     def get_output_shape(self):
+        """
+        Return the output shape of this layer
+        :return: tuple
+        """
         pass
 
     def forward_pass(self, X):
+        """
+        Perform forward pass on the input
+        :param X: input numpy array (N x D)
+        :return: numpy array - (N x H)
+        """
         pass
 
     def back_propagation(self, d):
+        """
+        Computes gradients and updates the weights of this layer
+        :param d:   Gradients being passed back (N x H)
+        :return: N x D numpy array of gradients
+        """
         pass
 
     def get_input_layer(self):
@@ -83,7 +97,6 @@ class Dense(Layer):
         :param X: input numpy array (N x D)
         :return: numpy array - (N x H)
         """
-
         self.X = np.copy(X)
         return np.dot(X, np.transpose(self.w)) + np.transpose(self.b)
 
@@ -231,9 +244,19 @@ class Loss:
         pass
 
     def get_loss_value(self, Y, O):
+        """
+        :param Y: Actual outputs (categorical) (N x C)
+        :param O: Predicted outputs (N x C)
+        :return: Column vector (N x 1) of loss values
+        """
         pass
 
     def get_gradient(self, Y, O):
+        """
+        :param Y: Actual outputs (categorical) (N x C)
+        :param O: Predicted outputs (N x C)
+        :return:   Gradient numpy array (N x C)
+        """
         pass
 
 
@@ -270,7 +293,7 @@ class Hinge(Loss):
         :param O: Predicted outputs (N x C)
         :return: Column vector (N x 1) of loss values
         """
-        # TODO Compute and return hinge loss value
+        # TODO: Compute and return hinge loss value
         pass
 
     def get_gradient(self, Y, O):
@@ -279,5 +302,5 @@ class Hinge(Loss):
         :param O: Predicted outputs (N x C)
         :return:   Gradient numpy array (N x C)
         """
-        # TODO Compute and return the gradients for hinge loss
+        # TODO: Compute and return the gradients for hinge loss
         pass
