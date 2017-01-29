@@ -1,15 +1,16 @@
+from tqdm import tqdm
+
+import data_processor
 import models
 import util
-import data_processor
-from tqdm import tqdm
 
 data_store = data_processor.DataStore()
 data_dict = data_store.get_data()
 
-batch_size_list = [25, 50, 100, 200, 400]
-lr_list = [pow(10, -1 * ii) for ii in range(1, 10)]
+batch_size_list = [10, 50, 100, 200, 400, 800]
+lr_list = [pow(10, -1 * ii) for ii in range(6, 10)]
 
-num_epochs = 400
+num_epochs = 600
 lambda_ = 0.001
 
 log_filename = '../results/rmlr_batch_lr.csv'

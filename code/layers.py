@@ -46,16 +46,54 @@ class Dense(Layer):
         weight_shape = (self.n, self.input_shape[1] + 1)
         self.w = np.zeros(weight_shape)
 
+    def get_output_shape(self):
+        """
+        Return the output shape of this layer
+        :return: tuple
+        """
+        output_shape = (self.input_shape[0], self.n)
+        return output_shape
 
-class Softmax(Layer):
+
+class Activation(Layer):
+    """
+    Base class for activation layers
+    """
+
+    def get_output_shape(self):
+        """
+        Return the output shape of this layer
+        :return: tuple
+        """
+        output_shape = self.input_shape
+        return output_shape
+
+
+class Softmax(Activation):
     """
     Softmax activation layer
     """
-    pass
+
+    def forward_pass(self, X):
+        """
+        Perform forward pass on the input
+        :param X: input numpy array
+        :return: numpy array of shape same as input
+        """
+        return 1 / (1 + np.exp(-1 * X))
 
 
-class ReLU(Layer):
+class ReLU(Activation):
     """
     ReLU activation layer
     """
-    pass
+
+    def forward_pass(self, X):
+        """
+        Perform forward pass on the input
+        :param X: input numpy array
+        :return: numpy array of shape same as input
+        """
+        indices = X < np.zeros(self.input_shape)
+        X[indices] = 0
+        return X

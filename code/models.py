@@ -1,5 +1,6 @@
-import util
 import numpy as np
+
+import util
 
 
 # noinspection PyPep8Naming
@@ -73,7 +74,7 @@ class RMLR:
             train_acc = util.get_accuracy(Y, self.predict_classes(X))
             val_acc = util.get_accuracy(val_Y, self.predict_classes(val_X))
 
-            if val_acc >= best_val_acc:
+            if val_acc > best_val_acc:
                 best_val_acc = val_acc
                 best_train_acc = train_acc
                 best_epoch = epoch_idx + 1
