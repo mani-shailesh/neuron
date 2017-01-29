@@ -41,7 +41,7 @@ def run_rmlr_experiments():
 
 
 def create_model(input_shape, weight_decay):
-    dense1 = layers.Dense(10, input_shape=input_shape, name="dense_1", weight_decay=weight_decay)
+    dense1 = layers.Dense(10, weight_decay=weight_decay, input_shape=input_shape, name="dense_1")
     act1 = layers.Softmax(input_layer=dense1, name="softmax_1")
     # dense2 = layers.Dense(10, input_layer=act1, name="dense_2")
     # act2 = layers.Softmax(input_layer=dense2, name="softmax_2")
@@ -62,12 +62,26 @@ def run_mlp_experiments():
     val_X = data_dict['val']['data']
     val_Y = data_dict['val']['labels']
 
-    batch_size = 200
-    num_epochs = 5
-    lr = 0.001
-    weight_decay = 0.001
+    log_filename = '../results/mlp_lr_wd_100.csv'
+    util.log(log_filename, 'lr,wd,epoch#,train_acc,val_acc')
+
+    batch_size = 100
+    num_epochs = 100
+    lr_list = [pow(10, -1 * ii) for ii in range(1, 9)]
+    weight_decay_list = [1.0 / pow(5, ii) for ii in range(0, 9)] + [0]
 
     input_shape = (batch_size, train_X.shape[1])
-    mlp = create_model(input_shape, weight_decay)
 
-    mlp.train(train_X, train_Y, lr, batch_size, val_X, val_Y, num_epochs)
+    for lr in lr_list:
+        for weight_decay in weight_decay_list:
+            print("\n---------------------------------------------------------")
+            print("Learning Rate: " + str(lr) + ", Weight Decay: " + str(weight_decay) + "\n")
+
+            mlp = create_model(input_shape, weight_decay)
+
+            train_acc, val_acc, epoch = \
+                mlp.train(train_X, train_Y, lr, batch_size, num_epochs, val_X, val_Y, False)
+            util.log(log_filename,
+                     str(lr) + "," + str(weight_decay) + "," + str(epoch) + "," + str(train_acc) + "," + str(val_acc))
+
+            print("\nBest Validation Accuracy: " + str(val_acc) + ", Training accuracy: " + str(train_acc))

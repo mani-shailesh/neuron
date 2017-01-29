@@ -137,9 +137,10 @@ class MLP:
         self.log_file = log_file
         self.num_classes = output_layer.get_output_shape()[1]
 
-    def train(self, X, Y, lr, batch_size, val_X, val_Y, num_epochs):
+    def train(self, X, Y, lr, batch_size, num_epochs, val_X, val_Y, print_acc=True):
         """
         Train the model using 'X' as training data and 'Y' as labels
+        :param print_acc: Print accuracy after each epoch if True
         :param X: numpy array of feature vectors
         :param Y: list of actuals label indices
         :param lr:  learning rate float (> 0)
@@ -162,15 +163,16 @@ class MLP:
 
         util.log(self.log_file, "epoch,train_acc,val_acc")
 
-        for epoch_idx in range(num_epochs):
-            print("Performing epoch #" + str(epoch_idx + 1))
+        for epoch_idx in tqdm(range(num_epochs)):
+            if print_acc:
+                print("Performing epoch #" + str(epoch_idx + 1))
 
             # Shuffle training data and labels
             perm = np.random.permutation(n)
             X = X[perm, :]
             Y = Y[perm]
 
-            for init_idx in tqdm(range(0, n, batch_size)):
+            for init_idx in range(0, n, batch_size):
                 y = Y[init_idx:init_idx + batch_size]
                 x = X[init_idx:init_idx + batch_size, :]
                 y_c = util.to_categorical(y, self.num_classes)
@@ -191,9 +193,10 @@ class MLP:
 
             util.log(self.log_file,
                      str(epoch_idx + 1) + "," + str(train_acc) + "," + str(val_acc))
-            print("Training accuracy: " + str(train_acc))
-            print("Validation accuracy: " + str(val_acc))
-            print("\n------------------------------------\n")
+            if print_acc:
+                print("Training accuracy: " + str(train_acc))
+                print("Validation accuracy: " + str(val_acc))
+                print("\n------------------------------------\n")
 
         print("Training completed.")
         return best_train_acc, best_val_acc, best_epoch
