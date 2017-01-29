@@ -104,7 +104,6 @@ class Softmax(Activation):
 
     def back_propagation(self, f, d):
         """
-
         :param f:   Output of this layer during forward pass (N x C)
         :param d:   Gradients being passed back (N x C)
         :return: N x C numpy array of gradients
@@ -127,6 +126,14 @@ class Sigmoid(Activation):
         """
         return 1 / (1 + np.exp(-1 * X))
 
+    def back_propagation(self, f, d):
+        """
+        :param f:   Output of this layer during forward pass (N x D)
+        :param d:   Gradients being passed back (N x D)
+        :return: N x D numpy array of gradients
+        """
+        return f * (1 - f) * d
+
 
 class ReLU(Activation):
     """
@@ -139,9 +146,17 @@ class ReLU(Activation):
         :param X: input numpy array
         :return: numpy array of shape same as input
         """
-        indices = X < np.zeros(self.input_shape)
-        X[indices] = 0
-        return X
+        Y = np.copy(X)
+        Y[X <= 0] = 0
+        return Y
+
+    def back_propagation(self, f, d):
+        """
+        :param f:   Output of this layer during forward pass (N x D)
+        :param d:   Gradients being passed back (N x D)
+        :return: N x D numpy array of gradients
+        """
+        return (f > 0) * d
 
 
 class LeakyReLU(Activation):
@@ -159,9 +174,19 @@ class LeakyReLU(Activation):
         :param X: input numpy array
         :return: numpy array of shape same as input
         """
-        indices = X < np.zeros(self.input_shape)
-        X[indices] *= self.alpha
-        return X
+        Y = np.copy(X)
+        Y[X <= 0] *= self.alpha
+        return Y
+
+    def back_propagation(self, f, d):
+        """
+        :param f:   Output of this layer during forward pass (N x D)
+        :param d:   Gradients being passed back (N x D)
+        :return: N x D numpy array of gradients
+        """
+        new_d = np.ones(f.shape)
+        new_d[f <= 0] = self.alpha
+        return new_d * d
 
 
 class Tanh(Activation):
@@ -176,6 +201,14 @@ class Tanh(Activation):
         :return: numpy array of shape same as input
         """
         return np.tanh(X)
+
+    def back_propagation(self, f, d):
+        """
+        :param f:   Output of this layer during forward pass (N x D)
+        :param d:   Gradients being passed back (N x D)
+        :return: N x D numpy array of gradients
+        """
+        return (1 - (f ** 2)) * d
 
 
 class Loss:
