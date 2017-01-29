@@ -38,10 +38,11 @@ class Layer:
         """
         pass
 
-    def back_propagation(self, d):
+    def back_propagation(self, d, lr):
         """
         Computes gradients and updates the weights of this layer
         :param d:   Gradients being passed back (N x H)
+        :param lr:  Learning rate
         :return: N x D numpy array of gradients
         """
         pass
@@ -72,16 +73,18 @@ class Dense(Layer):
     Fully connected layer
     """
 
-    def __init__(self, num_units, *args, **kwargs):
+    def __init__(self, num_units, weight_decay=0.0, *args, **kwargs):
         """
         Initialization of fully connected layer
         :param num_units: Number of units in this layer
+        :param weight_decay: Weight decay for L2 regularization
         """
         Layer.__init__(self, *args, **kwargs)
         self.h = num_units
+        self.weight_decay = weight_decay
         weight_shape = (self.h, self.input_shape[1])
-        self.w = np.zeros(weight_shape)
-        self.b = np.zeros((self.h, 1))  # bias weights
+        self.w = np.random.standard_normal(weight_shape) / np.sqrt(self.input_shape[1])
+        self.b = np.random.standard_normal((self.h, 1)) / np.sqrt(self.input_shape[1])  # bias weights
 
     def get_output_shape(self):
         """
@@ -100,17 +103,19 @@ class Dense(Layer):
         self.X = np.copy(X)
         return np.dot(X, np.transpose(self.w)) + np.transpose(self.b)
 
-    def back_propagation(self, d):
+    def back_propagation(self, d, lr):
         """
         Computes gradients and updates the weights of this layer
         :param d:   Gradients being passed back (N x H)
+        :param lr:  Learning rate
         :return: N x D numpy array of gradients
         """
         new_d = np.dot(d, self.w)
-        d_w = np.dot(np.transpose(d), self.X) / self.input_shape[0]
+        d_w = np.dot(np.transpose(d), self.X) / self.input_shape[0] \
+              + self.weight_decay * self.w
         d_b = np.c_[np.sum(d, axis=0)] / self.input_shape[0]
-        self.w -= d_w
-        self.b -= d_b
+        self.w -= lr * d_w
+        self.b -= lr * d_b
         return new_d
 
 
@@ -129,9 +134,10 @@ class Softmax(Activation):
         self.Y = np.exp(X) / row_sum[:, None]
         return self.Y
 
-    def back_propagation(self, d):
+    def back_propagation(self, d, lr):
         """
         :param d:   Gradients being passed back (N x C)
+        :param lr:  Learning rate
         :return: N x C numpy array of gradients
         """
         fd = self.Y * d
@@ -153,9 +159,10 @@ class Sigmoid(Activation):
         self.Y = 1 / (1 + np.exp(-1 * X))
         return self.Y
 
-    def back_propagation(self, d):
+    def back_propagation(self, d, lr):
         """
         :param d:   Gradients being passed back (N x D)
+        :param lr:  Learning rate
         :return: N x D numpy array of gradients
         """
         return self.Y * (1 - self.Y) * d
@@ -176,9 +183,10 @@ class ReLU(Activation):
         self.Y[X <= 0] = 0
         return self.Y
 
-    def back_propagation(self, d):
+    def back_propagation(self, d, lr):
         """
         :param d:   Gradients being passed back (N x D)
+        :param lr:  Learning rate
         :return: N x D numpy array of gradients
         """
         return (self.Y > 0) * d
@@ -203,9 +211,10 @@ class LeakyReLU(Activation):
         self.Y[X <= 0] *= self.alpha
         return self.Y
 
-    def back_propagation(self, d):
+    def back_propagation(self, d, lr):
         """
         :param d:   Gradients being passed back (N x D)
+        :param lr:  Learning rate
         :return: N x D numpy array of gradients
         """
         new_d = np.ones(self.Y.shape)
@@ -227,9 +236,10 @@ class Tanh(Activation):
         self.Y = np.tanh(X)
         return self.Y
 
-    def back_propagation(self, d):
+    def back_propagation(self, d, lr):
         """
         :param d:   Gradients being passed back (N x D)
+        :param lr:  Learning rate
         :return: N x D numpy array of gradients
         """
         return (1 - (self.Y ** 2)) * d

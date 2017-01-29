@@ -1,4 +1,5 @@
 import numpy as np
+from tqdm import tqdm
 
 import util
 
@@ -62,7 +63,7 @@ class RMLR:
             X = X[perm, :]
             Y = Y[perm]
 
-            for init_idx in range(0, n, batch_size):
+            for init_idx in tqdm(range(0, n, batch_size)):
                 y = Y[init_idx:init_idx + batch_size]
                 x = X[init_idx:init_idx + batch_size, :]
                 y_c = util.to_categorical(y, self.num_classes)
@@ -169,16 +170,16 @@ class MLP:
             X = X[perm, :]
             Y = Y[perm]
 
-            for init_idx in range(0, n, batch_size):
+            for init_idx in tqdm(range(0, n, batch_size)):
                 y = Y[init_idx:init_idx + batch_size]
                 x = X[init_idx:init_idx + batch_size, :]
                 y_c = util.to_categorical(y, self.num_classes)
                 o = self.forward_pass(x)
 
                 # Perform back propagation on the network
-                grad = self.loss.get_gradient(y_c, o) * lr
+                grad = self.loss.get_gradient(y_c, o)
                 for layer in reversed(self.layers):
-                    grad = layer.back_propagation(grad)
+                    grad = layer.back_propagation(grad, lr)
 
             train_acc = util.get_accuracy(Y, self.predict_classes(X))
             val_acc = util.get_accuracy(val_Y, self.predict_classes(val_X))

@@ -40,9 +40,11 @@ def run_rmlr_experiments():
                      str(lr) + "," + str(batch_size) + "," + str(epoch) + "," + str(train_acc) + "," + str(val_acc))
 
 
-def create_model(input_shape):
-    dense1 = layers.Dense(10, input_shape=input_shape, name="dense_1")
+def create_model(input_shape, weight_decay):
+    dense1 = layers.Dense(10, input_shape=input_shape, name="dense_1", weight_decay=weight_decay)
     act1 = layers.Softmax(input_layer=dense1, name="softmax_1")
+    # dense2 = layers.Dense(10, input_layer=act1, name="dense_2")
+    # act2 = layers.Softmax(input_layer=dense2, name="softmax_2")
     return models.MLP(input_layer=dense1, output_layer=act1, loss=layers.CrossEntropy(),
                       log_file='../results/mlp.csv')
 
@@ -60,11 +62,12 @@ def run_mlp_experiments():
     val_X = data_dict['val']['data']
     val_Y = data_dict['val']['labels']
 
-    batch_size = 100
-    num_epochs = 10
-    lr = 1e-6
+    batch_size = 200
+    num_epochs = 5
+    lr = 0.001
+    weight_decay = 0.001
 
     input_shape = (batch_size, train_X.shape[1])
-    mlp = create_model(input_shape)
+    mlp = create_model(input_shape, weight_decay)
 
     mlp.train(train_X, train_Y, lr, batch_size, val_X, val_Y, num_epochs)
