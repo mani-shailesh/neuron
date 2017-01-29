@@ -109,16 +109,17 @@ class RMLR:
         return np.argmax(values, axis=1)
 
 
-class Model:
+class MLP:
     """
-    Class to represent a model composed of layers
+    Class to represent a multi layer perceptron model composed of layers
     """
 
-    def __init__(self, input_layer, output_layer, log_file):
+    def __init__(self, input_layer, output_layer, loss, log_file=None):
         """
         Initialize the model
         :param input_layer: 'Layer' object to act as the input layer
         :param output_layer: 'Layer' object to act as the output layer
+        :param loss:    Object of `Loss` layer class
         """
         self.layers = [output_layer]
         layer = output_layer
@@ -131,15 +132,15 @@ class Model:
             else:
                 self.layers.append(layer)
         self.layers.reverse()
+        self.loss = loss
         self.log_file = log_file
         self.num_classes = output_layer.get_output_shape()[1]
 
-    def train(self, X, Y, loss, lr, batch_size, val_X, val_Y, num_epochs):
+    def train(self, X, Y, lr, batch_size, val_X, val_Y, num_epochs):
         """
         Train the model using 'X' as training data and 'Y' as labels
         :param X: numpy array of feature vectors
         :param Y: list of actuals label indices
-        :param loss:    Object of `Loss` layer class
         :param lr:  learning rate float (> 0)
         :param batch_size:  int (> 0)
         :param num_epochs:  int (>= 0)
@@ -175,7 +176,7 @@ class Model:
                 o = self.forward_pass(x)
 
                 # Perform back propagation on the network
-                grad = loss.get_gradient(y_c, o) * lr
+                grad = self.loss.get_gradient(y_c, o) * lr
                 for layer in reversed(self.layers):
                     grad = layer.back_propagation(grad)
 
