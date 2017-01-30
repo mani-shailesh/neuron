@@ -303,8 +303,10 @@ class Hinge(Loss):
         :param O: Predicted outputs (N x C)
         :return: Column vector (N x 1) of loss values
         """
-        # TODO: Compute and return hinge loss value
-        pass
+        oyi = O[range(O.shape[0]), np.argmax(Y, axis=1)]
+        l = (O - oyi[:, None]) + 1
+        l[l < 0] = 0
+        return np.c_[np.sum(l, axis=1) - 1]
 
     def get_gradient(self, Y, O):
         """
@@ -312,5 +314,10 @@ class Hinge(Loss):
         :param O: Predicted outputs (N x C)
         :return:   Gradient numpy array (N x C)
         """
-        # TODO: Compute and return the gradients for hinge loss
-        pass
+        # Compute and return the gradients for hinge loss
+        oy = O[range(O.shape[0]), np.argmax(Y, axis=1)]
+        l = (O - oy[:, None]) + 1
+        grad = np.zeros(O.shape)
+        grad[l > 0] = 1
+        grad[range(O.shape[0]), np.argmax(Y, axis=1)] = -1 * (np.sum(grad, axis=1) - 1)
+        return grad
