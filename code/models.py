@@ -73,7 +73,7 @@ class RMLR:
                 y_c = util.to_categorical(y, self.num_classes)
                 f = self.predict_values(x)
                 # noinspection PyTypeChecker
-                del_J = np.dot(np.transpose(f - y_c), x) + \
+                del_J = np.dot(np.transpose(f - y_c), x) / batch_size + \
                         (lambda_ * np.c_[np.zeros(self.num_classes), self.W[:, 1:]])
                 self.W -= (lr * del_J)
 
