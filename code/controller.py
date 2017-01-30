@@ -16,11 +16,11 @@ def run_rmlr_experiments():
     batch_size = 100
     lr = 1e-6
 
-    num_epochs = 500
-    lambda_list = [pow(5, -1 * ii) for ii in range(0, 9)] + [0]
+    num_epochs = 1000
+    lambda_list = [pow(2, -1 * ii) for ii in range(1, 10)] + [0]
 
-    log_filename = '../results/rmlr_batch_lr.csv'
-    util.log(log_filename, 'lr,batch_size,epoch#,train_acc,val_acc')
+    log_filename = '../results/rmlr_wd.csv'
+    util.log(log_filename, 'wd,epoch#,train_acc,val_acc')
 
     rmlr = models.RMLR(10, '../results/rmlr.csv')
 
@@ -37,18 +37,24 @@ def run_rmlr_experiments():
         train_acc, val_acc, epoch = rmlr.train(train_X, train_Y, lr, batch_size, num_epochs, lambda_,
                                                val_X, val_Y, reinit_weights=True, print_acc=False)
         util.log(log_filename,
-                 str(lr) + "," + str(batch_size) + "," + str(epoch) + "," + str(train_acc) + "," + str(val_acc))
+                 str(lambda_) + "," + str(epoch) + "," + str(train_acc) + "," + str(val_acc))
 
         print("\nBest Validation Accuracy: " + str(val_acc) + ", Training accuracy: " + str(train_acc))
 
 
-def create_model(input_shape, weight_decay):
-    dense1 = layers.Dense(10, weight_decay=weight_decay, input_shape=input_shape, name="dense_1")
-    act1 = layers.Softmax(input_layer=dense1, name="softmax_1")
-    # dense2 = layers.Dense(10, input_layer=act1, name="dense_2")
-    # act2 = layers.Softmax(input_layer=dense2, name="softmax_2")
-    return models.MLP(input_layer=dense1, output_layer=act1, loss=layers.CrossEntropy(),
-                      log_file='../results/mlp.csv')
+def create_model(input_shape, weight_decay, hidden_units=None):
+    if hidden_units is not None:
+        log_file = '../results/mlp_relu.csv'
+        dense1 = layers.Dense(hidden_units, weight_decay=weight_decay, input_shape=input_shape, name="dense_1")
+        act1 = layers.ReLU(input_layer=dense1, name="relu_1")
+        dense2 = layers.Dense(10, weight_decay=weight_decay, input_layer=act1, name="dense_2")
+        act = layers.Softmax(input_layer=dense2, name="softmax_1")
+    else:
+        log_file = '../results/mlp.csv'
+        dense1 = layers.Dense(10, weight_decay=weight_decay, input_shape=input_shape, name="dense_1")
+        act = layers.Softmax(input_layer=dense1, name="softmax_1")
+    return models.MLP(input_layer=dense1, output_layer=act, loss=layers.CrossEntropy(),
+                      log_file=log_file)
 
 
 def run_mlp_experiments():
@@ -64,26 +70,29 @@ def run_mlp_experiments():
     val_X = data_dict['val']['data']
     val_Y = data_dict['val']['labels']
 
-    log_filename = '../results/mlp_lr_wd_100.csv'
-    util.log(log_filename, 'lr,wd,epoch#,train_acc,val_acc')
+    log_filename = '../results/mlp_relu_units.csv'
+    util.log(log_filename, 'units,epoch#,train_acc,val_acc')
 
     batch_size = 100
     num_epochs = 100
-    lr_list = [pow(10, -1 * ii) for ii in range(1, 9)]
-    weight_decay_list = [1.0 / pow(5, ii) for ii in range(0, 9)] + [0]
+
+    lr = 0.001
+    weight_decay = 0.04
+
+    hidden_units_list = [20, 50, 100, 250, 500, 1000, 2000]
 
     input_shape = (batch_size, train_X.shape[1])
 
-    for lr in lr_list:
-        for weight_decay in weight_decay_list:
-            print("\n---------------------------------------------------------")
-            print("Learning Rate: " + str(lr) + ", Weight Decay: " + str(weight_decay) + "\n")
+    for hidden_units in hidden_units_list:
+        print("\n---------------------------------------------------------")
+        print("Hidden units: " + str(hidden_units) + "\n")
 
-            mlp = create_model(input_shape, weight_decay)
+        mlp = create_model(input_shape, weight_decay, hidden_units)
 
-            train_acc, val_acc, epoch = \
-                mlp.train(train_X, train_Y, lr, batch_size, num_epochs, val_X, val_Y, False)
-            util.log(log_filename,
-                     str(lr) + "," + str(weight_decay) + "," + str(epoch) + "," + str(train_acc) + "," + str(val_acc))
+        train_acc, val_acc, epoch = \
+            mlp.train(train_X, train_Y, lr, batch_size, num_epochs, val_X, val_Y, False)
+        util.log(log_filename,
+                 str(hidden_units) + "," + str(epoch) + "," + str(train_acc) +
+                 "," + str(val_acc))
 
-            print("\nBest Validation Accuracy: " + str(val_acc) + ", Training accuracy: " + str(train_acc))
+        print("\nBest Validation Accuracy: " + str(val_acc) + ", Training accuracy: " + str(train_acc))

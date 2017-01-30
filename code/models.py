@@ -178,7 +178,7 @@ class MLP:
             X = X[perm, :]
             Y = Y[perm]
 
-            for init_idx in range(0, n, batch_size):
+            for init_idx in tqdm(range(0, n, batch_size)):
                 y = Y[init_idx:init_idx + batch_size]
                 x = X[init_idx:init_idx + batch_size, :]
                 y_c = util.to_categorical(y, self.num_classes)
