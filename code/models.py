@@ -153,7 +153,8 @@ class MLP:
         self.log_file = log_file
         self.num_classes = output_layer.get_output_shape()[1]
 
-    def train(self, X, Y, lr, batch_size, num_epochs, val_X, val_Y, print_acc=True):
+    def train(self, X, Y, lr, batch_size, num_epochs, val_X=None, val_Y=None
+              , print_acc=True, save_dir=None):
         """
         Train the model using 'X' as training data and 'Y' as labels
         :param print_acc: Print accuracy after each epoch if True
@@ -166,6 +167,7 @@ class MLP:
                         No validation performed if this is None
         :param val_Y:   class labels for validation set
                         Used only if val_X is not None
+        :param save_dir: Save best model if this is not None
         :return Tuple of best validation accuracy, training accuracy at that epoch and the epoch no.
         """
 
@@ -200,18 +202,29 @@ class MLP:
                     grad = layer.back_propagation(grad, lr)
 
             train_acc = util.get_accuracy(Y, self.predict_classes(X))
-            val_acc = util.get_accuracy(val_Y, self.predict_classes(val_X))
-
-            if val_acc > best_val_acc:
-                best_val_acc = val_acc
-                best_train_acc = train_acc
-                best_epoch = epoch_idx + 1
-
-            util.log(self.log_file,
-                     str(epoch_idx + 1) + "," + str(train_acc) + "," + str(val_acc))
+            log_str = str(epoch_idx + 1) + "," + str(train_acc)
             if print_acc:
                 print("Training accuracy: " + str(train_acc))
-                print("Validation accuracy: " + str(val_acc))
+
+            if val_X is not None and val_Y is not None:
+                val_acc = util.get_accuracy(val_Y, self.predict_classes(val_X))
+                log_str = log_str + "," + str(val_acc)
+                if print_acc:
+                    print("Validation accuracy: " + str(val_acc))
+                if val_acc > best_val_acc:
+                    best_val_acc = val_acc
+                    best_train_acc = train_acc
+                    best_epoch = epoch_idx + 1
+                    if save_dir is not None:
+                        self.save_model(save_dir, True)
+            else:
+                best_train_acc = train_acc
+                best_epoch = epoch_idx + 1
+                if save_dir is not None:
+                    self.save_model(save_dir, True)
+
+            util.log(self.log_file, log_str)
+            if print_acc:
                 print("\n------------------------------------\n")
 
         print("Training completed.")
