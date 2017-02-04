@@ -45,11 +45,11 @@ def run_rmlr_experiments():
             print("\nBest Validation Accuracy: " + str(val_acc) + ", Training accuracy: " + str(train_acc))
 
 
-def create_model(input_shape, weight_decay, hidden_units=None, loss=layers.CrossEntropy()):
+def create_model(input_shape, weight_decay, hidden_units=None, loss='CrossEntropy'):
     if hidden_units is not None:
-        log_file = '../results/mlp_tanh.csv'
+        log_file = '../results/mlp_relu_hinge.csv'
         dense1 = layers.Dense(hidden_units, weight_decay=weight_decay, input_shape=input_shape, name="dense_1")
-        act1 = layers.Tanh(input_layer=dense1, name="tanh_1")
+        act1 = layers.ReLU(input_layer=dense1, name="relu_1")
         dense2 = layers.Dense(10, weight_decay=weight_decay, input_layer=act1, name="dense_2")
         act = layers.Softmax(input_layer=dense2, name="softmax_1")
     else:
@@ -93,10 +93,11 @@ def run_mlp_experiments():
     print("\n---------------------------------------------------------")
     print("Hidden units: " + str(hidden_units) + "\n")
 
-    mlp = create_model(input_shape, weight_decay, hidden_units)
+    mlp = create_model(input_shape, weight_decay, hidden_units, loss='Hinge')
 
     train_acc, val_acc, epoch = \
-        mlp.train(train_X, train_Y, lr, batch_size, num_epochs, val_X, val_Y, False)
+        mlp.train(train_X, train_Y, lr, batch_size, num_epochs, val_X, val_Y,
+                  print_acc=False, save_dir='/home/shailesh/aml-lab-1/results')
     # util.log(log_filename,
     #          str(hidden_units) + "," + str(epoch) + "," + str(train_acc) +
     #          "," + str(val_acc))

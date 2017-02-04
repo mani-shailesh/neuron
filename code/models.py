@@ -171,6 +171,11 @@ class MLP:
         :return Tuple of best validation accuracy, training accuracy at that epoch and the epoch no.
         """
 
+        if save_dir is not None:
+            json_file = os.path.join(save_dir, self.name + '.json')
+            self.save_model_json(json_file)
+            weights_file = os.path.join(save_dir, self.name + '_weights.hdf5')
+
         n = X.shape[0]
 
         print("Starting training...")
@@ -216,18 +221,20 @@ class MLP:
                     best_train_acc = train_acc
                     best_epoch = epoch_idx + 1
                     if save_dir is not None:
-                        self.save_model(save_dir, True)
+                        self.save_model_weights(weights_file)
             else:
                 best_train_acc = train_acc
                 best_epoch = epoch_idx + 1
-                if save_dir is not None:
-                    self.save_model(save_dir, True)
 
             util.log(self.log_file, log_str)
             if print_acc:
                 print("\n------------------------------------\n")
 
         print("Training completed.")
+        if save_dir is not None and (val_X is None or val_Y is None):
+            print("Saving model...")
+            self.save_model_weights(weights_file)
+            print("Done.")
         return best_train_acc, best_val_acc, best_epoch
 
     def forward_pass(self, X):
@@ -249,15 +256,12 @@ class MLP:
         values = self.forward_pass(X)
         return np.argmax(values, axis=1)
 
-    def save_model(self, save_dir, save_weights=True):
+    def save_model_json(self, json_file):
         """
-        Save the current architecture and weights of model in given `save_dir`
-        :param save_dir: The directory to save the model in
-        :param save_weights: Save weights as well is this is True
+        Save the current architecture in given path
+        :param json_file: Full path of the file to write to
         :return:
         """
-
-        json_file = os.path.join(save_dir, self.name + '.json')
         json_dict = {
             'name': self.name,
             'loss': self.loss.__class__.__name__,
@@ -273,11 +277,30 @@ class MLP:
         with open(json_file, 'w') as json_file_object:
             json_file_object.write(json_str)
 
+    def save_model_weights(self, weights_file):
+        """
+        Save the current weights in given path
+        :param weights_file: Full path of the file to write to
+        :return:
+        """
+        with h5py.File(weights_file, 'w') as weights_file_obj:
+            for layer in self.layers:
+                layer.save_weights(weights_file_obj)
+
+    def save_model(self, save_dir, save_weights=True):
+        """
+        Save the current architecture and weights of model in given `save_dir`
+        :param save_dir: The directory to save the model in
+        :param save_weights: Save weights as well is this is True
+        :return:
+        """
+
+        json_file = os.path.join(save_dir, self.name + '.json')
+        self.save_model_json(json_file)
+
         if save_weights:
             weights_file = os.path.join(save_dir, self.name + '_weights.hdf5')
-            with h5py.File(weights_file, 'w') as weights_file_obj:
-                for layer in self.layers:
-                    layer.save_weights(weights_file_obj)
+            self.save_model_weights(weights_file)
 
     @staticmethod
     def load_from_json(json_file_name):
