@@ -1,3 +1,4 @@
+import json
 import os
 
 import numpy as np
@@ -141,7 +142,10 @@ class MLP:
             else:
                 self.layers.append(layer)
         self.layers.reverse()
-        self.loss = loss
+        if type(loss) is str:
+            self.loss = getattr(layer, loss)()
+        else:
+            self.loss = loss
         self.name = name
         self.log_file = log_file
         self.num_classes = output_layer.get_output_shape()[1]
@@ -236,7 +240,20 @@ class MLP:
         :return:
         """
 
-        # TODO: Save architecture of model as json file
+        json_file = os.path.join(save_dir, self.name + '.json')
+        json_dict = {
+            'name': self.name,
+            'loss': self.loss.__class__.__name__,
+            'layers': []
+        }
+        if self.log_file is not None:
+            json_dict['log_file'] = self.log_file
+        for layer in self.layers:
+            json_dict['layers'].append(layer.get_config())
+        json_str = json.dumps(json_dict)
+        with open(json_file, 'w') as json_file_object:
+            json_file_object.write(json_str)
+
         weights_file = os.path.join(save_dir, self.name + '_weights.hdf5')
         for layer in self.layers:
             layer.save_weights(weights_file)

@@ -77,7 +77,7 @@ class Layer:
         """
         return_dict = {
             'name': self.name,
-            'type': type(self).__name__
+            'type': self.__class__.__name__
         }
         if self.input_layer is None:
             return_dict['input_shape'] = self.input_shape
