@@ -286,3 +286,25 @@ class MLP:
         loaded_dict['output_layer'] = layer_name_to_obj[loaded_dict['output_layer_name']]
 
         return MLP(**loaded_dict)
+
+    def load_weights(self, weights_file_name):
+        """
+        Load weights to this model
+        :param weights_file_name: Full path to the file containing weights
+        :return:
+        """
+        for layer in self.layers:
+            layer.load_weights(weights_file_name)
+
+    @staticmethod
+    def load_model(json_file_name, weights_file_name=None):
+        """
+        Load and return model and its weights(if given)
+        :param json_file_name: Full path to the json file.
+        :param weights_file_name: Full path to the file containing weights
+        :return: `MLP` instance
+        """
+        model = MLP.load_from_json(json_file_name)
+        if weights_file_name is not None:
+            model.load_weights(weights_file_name)
+        return model

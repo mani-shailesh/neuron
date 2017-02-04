@@ -176,8 +176,8 @@ class Dense(Layer):
         """
         with h5py.File(filepath, 'r') as w_file:
             layer_grp = w_file[self.name]
-            self.w = layer_grp['w'].data
-            self.b = layer_grp['b'].data
+            self.w = layer_grp['w'][...]
+            self.b = layer_grp['b'][...]
 
     def get_config(self):
         """
