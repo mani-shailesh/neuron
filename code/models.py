@@ -234,10 +234,11 @@ class MLP:
         values = self.forward_pass(X)
         return np.argmax(values, axis=1)
 
-    def save_model(self, save_dir):
+    def save_model(self, save_dir, save_weights=True):
         """
         Save the current architecture and weights of model in given `save_dir`
         :param save_dir: The directory to save the model in
+        :param save_weights: Save weights as well is this is True
         :return:
         """
 
@@ -245,7 +246,9 @@ class MLP:
         json_dict = {
             'name': self.name,
             'loss': self.loss.__class__.__name__,
-            'layers': []
+            'layers': [],
+            'input_layer_name': self.layers[0].get_name(),
+            'output_layer_name': self.layers[-1].get_name()
         }
         if self.log_file is not None:
             json_dict['log_file'] = self.log_file
@@ -255,6 +258,28 @@ class MLP:
         with open(json_file, 'w') as json_file_object:
             json_file_object.write(json_str)
 
-        weights_file = os.path.join(save_dir, self.name + '_weights.hdf5')
-        for layer in self.layers:
-            layer.save_weights(weights_file)
+        if save_weights:
+            weights_file = os.path.join(save_dir, self.name + '_weights.hdf5')
+            for layer in self.layers:
+                layer.save_weights(weights_file)
+
+    @staticmethod
+    def load_from_json(json_file_name):
+        """
+        Load a model from `json_file_name` and return an instance of this class
+        :param json_file_name: Full path to the json file.
+        :return: `MLP` instance
+        """
+        with open(json_file_name, 'r') as json_file_obj:
+            loaded_dict = json.load(json_file_obj)
+        layer_name_to_obj = {}
+        for layer_dict in loaded_dict['layers']:
+            layer_class = getattr(layers, layer_dict['type'])
+            if 'input_layer_name' in layer_dict:
+                layer_dict['input_layer'] = layer_name_to_obj[layer_dict['input_layer_name']]
+            layer_obj = layer_class(**layer_dict)
+            layer_name_to_obj[layer_obj.get_name()] = layer_obj
+        loaded_dict['input_layer'] = layer_name_to_obj[loaded_dict['input_layer_name']]
+        loaded_dict['output_layer'] = layer_name_to_obj[loaded_dict['output_layer_name']]
+
+        return MLP(**loaded_dict)
