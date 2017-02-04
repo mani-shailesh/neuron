@@ -1,3 +1,5 @@
+import os
+
 import numpy as np
 from tqdm import tqdm
 
@@ -121,7 +123,7 @@ class MLP:
     Class to represent a multi layer perceptron model composed of layers
     """
 
-    def __init__(self, input_layer, output_layer, loss, log_file=None):
+    def __init__(self, input_layer, output_layer, loss, name='model', log_file=None):
         """
         Initialize the model
         :param input_layer: 'Layer' object to act as the input layer
@@ -140,6 +142,7 @@ class MLP:
                 self.layers.append(layer)
         self.layers.reverse()
         self.loss = loss
+        self.name = name
         self.log_file = log_file
         self.num_classes = output_layer.get_output_shape()[1]
 
@@ -225,3 +228,15 @@ class MLP:
         """
         values = self.forward_pass(X)
         return np.argmax(values, axis=1)
+
+    def save_model(self, save_dir):
+        """
+        Save the current architecture and weights of model in given `save_dir`
+        :param save_dir: The directory to save the model in
+        :return:
+        """
+
+        # TODO: Save architecture of model as json file
+        weights_file = os.path.join(save_dir, self.name + '_weights.hdf5')
+        for layer in self.layers:
+            layer.save_weights(weights_file)

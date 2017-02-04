@@ -1,3 +1,4 @@
+import h5py
 import numpy as np
 
 
@@ -52,6 +53,30 @@ class Layer:
         :return: input layer to this layer
         """
         return self.input_layer
+
+    def save_weights(self, filepath):
+        """
+        Save weights of this layer instance in the given `filepath`
+        :param filepath: Path to the file where weights are to be written
+        :return:
+        """
+        pass
+
+    def get_config(self):
+        """
+        Return dict of this layers configuration.
+        Dict contains all parameters required to re-instantiate this layer.
+        :return: Dict with keys like 'name', 'type' and other required parameters
+        """
+        pass
+
+    def load_weights(self, filepath):
+        """
+        Load weights of this layer from the given `filepath`
+        :param filepath: Name of the file that contains the weights
+        :return:
+        """
+        pass
 
 
 class Activation(Layer):
@@ -117,6 +142,28 @@ class Dense(Layer):
         self.w -= lr * d_w
         self.b -= lr * d_b
         return new_d
+
+    def save_weights(self, filepath):
+        """
+        Save weights of this layer instance in the given `filepath`
+        :param filepath: Path to the file where weights are to be written
+        :return:
+        """
+        with h5py.File(filepath, 'a') as w_file:
+            layer_grp = w_file.create_group(self.name)
+            layer_grp.create_dataset('w', self.w.shape, 'f', self.w)
+            layer_grp.create_dataset('b', self.b.shape, 'f', self.b)
+
+    def load_weights(self, filepath):
+        """
+        Load weights of this layer from the given `filepath`
+        :param filepath: Name of the file that contains the weights
+        :return:
+        """
+        with h5py.File(filepath, 'r') as w_file:
+            layer_grp = w_file[self.name]
+            self.w = layer_grp['w'].data
+            self.b = layer_grp['b'].data
 
 
 class Softmax(Activation):
