@@ -1,6 +1,7 @@
 import json
 import os
 
+import h5py
 import numpy as np
 from tqdm import tqdm
 
@@ -125,7 +126,8 @@ class MLP:
     Class to represent a multi layer perceptron model composed of layers
     """
 
-    def __init__(self, input_layer, output_layer, loss, name='model', log_file=None):
+    def __init__(self, input_layer, output_layer, loss, name='model', log_file=None,
+                 *args, **kwargs):
         """
         Initialize the model
         :param input_layer: 'Layer' object to act as the input layer
@@ -260,8 +262,9 @@ class MLP:
 
         if save_weights:
             weights_file = os.path.join(save_dir, self.name + '_weights.hdf5')
-            for layer in self.layers:
-                layer.save_weights(weights_file)
+            with h5py.File(weights_file, 'w') as weights_file_obj:
+                for layer in self.layers:
+                    layer.save_weights(weights_file_obj)
 
     @staticmethod
     def load_from_json(json_file_name):

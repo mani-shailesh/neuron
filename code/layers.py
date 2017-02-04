@@ -60,10 +60,10 @@ class Layer:
         """
         return self.input_layer
 
-    def save_weights(self, filepath):
+    def save_weights(self, w_file_obj):
         """
         Save weights of this layer instance in the given `filepath`
-        :param filepath: Path to the file where weights are to be written
+        :param w_file_obj: h5py File object
         :return:
         """
         pass
@@ -158,16 +158,15 @@ class Dense(Layer):
         self.b -= lr * d_b
         return new_d
 
-    def save_weights(self, filepath):
+    def save_weights(self, w_file_obj):
         """
         Save weights of this layer instance in the given `filepath`
-        :param filepath: Path to the file where weights are to be written
+        :param w_file_obj: h5py File object
         :return:
         """
-        with h5py.File(filepath, 'a') as w_file:
-            layer_grp = w_file.create_group(self.name)
-            layer_grp.create_dataset('w', self.w.shape, 'f', self.w)
-            layer_grp.create_dataset('b', self.b.shape, 'f', self.b)
+        layer_grp = w_file_obj.create_group(self.name)
+        layer_grp.create_dataset('w', self.w.shape, 'f', self.w)
+        layer_grp.create_dataset('b', self.b.shape, 'f', self.b)
 
     def load_weights(self, filepath):
         """
