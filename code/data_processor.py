@@ -1,6 +1,7 @@
 import cPickle
 import os
 import random
+
 import numpy as np
 
 DATA_DIR = "../data"
@@ -35,9 +36,10 @@ class DataStore:
         Fraction of training data to be split and used as validation set
         """
 
-    def load_data(self):
+    def load_data(self, split_val=True):
         """
         Loads training and test data from the `data_dir` and resets 'data_dict' & 'label_details_dict'
+        :param split_val: Split training into training and Validation if True
         """
         print("Loading data...")
 
@@ -69,9 +71,12 @@ class DataStore:
 
         print("Done.")
 
-        label_data_dict = self.create_validation_set(label_data_dict)
+        if split_val:
+            label_data_dict = self.create_validation_set(label_data_dict)
+            key_list = ['train', 'val', 'test']
+        else:
+            key_list = ['train', 'test']
 
-        key_list = ['train', 'val', 'test']
         self.data_dict = {
             key: {'data': [], 'labels': []} for key in key_list
             }
@@ -105,11 +110,12 @@ class DataStore:
         print("Done.")
         return label_data_dict
 
-    def get_data(self, zero_centre=True, normalize=True):
+    def get_data(self, zero_centre=True, normalize=True, split_val=True):
         """
         Return training, validation and test data with or without pre-processing
         :param zero_centre: Perform zero centering on data if this is True
         :param normalize: Normalize the data if this is True
+        :param split_val: Split training into training and Validation if True
         :return: A dictionary with 'train', 'val' & 'test' as keys
         Each value in this dictionary in turn is a dictionary with following structure
         'data': numpy array of data
@@ -118,9 +124,15 @@ class DataStore:
 
         # Make sure that data is loaded
         if self.data_dict is None:
-            self.load_data()
+            self.load_data(split_val)
+        else:
+            if split_val != ('val' in self.data_dict):
+                self.load_data(split_val)
 
-        key_list = ['train', 'val', 'test']
+        if split_val:
+            key_list = ['train', 'val', 'test']
+        else:
+            key_list = ['train', 'test']
 
         if zero_centre:
             print("Zero centering the data...")
