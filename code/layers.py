@@ -7,7 +7,7 @@ class Layer:
     Base class for a layer
     """
 
-    def __init__(self, name, input_layer=None, input_shape=None):
+    def __init__(self, name, input_layer=None, input_shape=None, *args, **kwargs):
         """
         Initialization of this layer
         :param name: Name of the layer. Must be unique
@@ -48,6 +48,12 @@ class Layer:
         """
         pass
 
+    def get_name(self):
+        """
+        :return: Name of this layer
+        """
+        return self.name
+
     def get_input_layer(self):
         """
         :return: input layer to this layer
@@ -67,8 +73,17 @@ class Layer:
         Return dict of this layers configuration.
         Dict contains all parameters required to re-instantiate this layer.
         :return: Dict with keys like 'name', 'type' and other required parameters
+                 Can be passed as **dict to __init__()
         """
-        pass
+        return_dict = {
+            'name': self.name,
+            'type': type(self).__name__
+        }
+        if self.input_layer is None:
+            return_dict['input_shape'] = self.input_shape
+        else:
+            return_dict['input_layer_name'] = self.get_input_layer().get_name()
+        return return_dict
 
     def load_weights(self, filepath):
         """
@@ -164,6 +179,18 @@ class Dense(Layer):
             layer_grp = w_file[self.name]
             self.w = layer_grp['w'].data
             self.b = layer_grp['b'].data
+
+    def get_config(self):
+        """
+        Return dict of this layers configuration.
+        Dict contains all parameters required to re-instantiate this layer.
+        :return: Dict with keys like 'name', 'type' and other required parameters
+                 Can be passed as **dict to __init__()
+        """
+        return_dict = Layer.get_config(self)
+        return_dict['num_units'] = self.h
+        return_dict['weight_decay'] = self.weight_decay
+        return return_dict
 
 
 class Softmax(Activation):
@@ -267,6 +294,17 @@ class LeakyReLU(Activation):
         new_d = np.ones(self.Y.shape)
         new_d[self.Y <= 0] = self.alpha
         return new_d * d
+
+    def get_config(self):
+        """
+        Return dict of this layers configuration.
+        Dict contains all parameters required to re-instantiate this layer.
+        :return: Dict with keys like 'name', 'type' and other required parameters
+                 Can be passed as **dict to __init__()
+        """
+        return_dict = Layer.get_config(self)
+        return_dict['alpha'] = self.alpha
+        return return_dict
 
 
 class Tanh(Activation):
