@@ -4,6 +4,7 @@ import os
 import numpy as np
 from tqdm import tqdm
 
+import layers
 import util
 
 
@@ -143,7 +144,7 @@ class MLP:
                 self.layers.append(layer)
         self.layers.reverse()
         if type(loss) is str:
-            self.loss = getattr(layer, loss)()
+            self.loss = getattr(layers, loss)()
         else:
             self.loss = loss
         self.name = name
