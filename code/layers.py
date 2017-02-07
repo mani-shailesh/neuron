@@ -152,7 +152,7 @@ class Dense(Layer):
         """
         new_d = np.dot(d, self.w)
         d_w = np.dot(np.transpose(d), self.X) / self.input_shape[0] \
-              + self.weight_decay * self.w
+            + self.weight_decay * self.w
         d_b = np.c_[np.sum(d, axis=0)] / self.input_shape[0]
         self.w -= lr * d_w
         self.b -= lr * d_b

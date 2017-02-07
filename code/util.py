@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 
 
 def add_dummy_feature(X):
@@ -44,3 +45,19 @@ def log(filename, msg):
     if filename is not None:
         with open(filename, 'a') as logfile:
             logfile.write(str(msg) + "\n")
+
+
+def get_lists_from_csv(filename):
+    """
+    Returns dict with file headers, list of values as key, value pairs
+    :param filename: Full path of the csv file
+    :return: dict {'header1': [value1, value2, ...]}
+    """
+    data = pd.read_csv(filename)
+    header_list = list(data)
+    ret_dict = {key: [] for key in header_list}
+    for index, row in data.iterrows():
+        for header in header_list:
+            ret_dict[header].append(row[header])
+    return ret_dict
+

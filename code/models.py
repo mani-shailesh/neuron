@@ -14,17 +14,18 @@ class RMLR:
     """
     Classifier that uses Regularized Multinomial Logistic Regression
     """
-    def __init__(self, num_classes, log_filename=None):
+    def __init__(self, num_classes, weight_decay, name='model_rmlr', log_file=None):
         self.W = None
-        self.num_classes = num_classes
-        self.log_file = log_filename
         """
         Weights including bias for the model
         """
-        pass
+        self.name = name
+        self.num_classes = num_classes
+        self.log_file = log_file
+        self.weight_decay = weight_decay
 
-    def train(self, X, Y, lr, batch_size, num_epochs, lambda_, val_X=None, val_Y=None,
-              reinit_weights=False, print_acc=True):
+    def train(self, X, Y, lr, batch_size, num_epochs, val_X=None, val_Y=None,
+              print_acc=True, save_dir=None):
         """
         Train the model using 'X' as training data and 'Y' as labels
         :param print_acc: Print to console if True
@@ -33,12 +34,11 @@ class RMLR:
         :param lr:  learning rate float (> 0)
         :param batch_size:  int (> 0)
         :param num_epochs:  int (>= 0)
-        :param lambda_: regularization parameter
         :param val_X:   numpy array of feature vectors for validation set
                         No validation performed if this is None
         :param val_Y:   class labels for validation set
                         Used only if val_X is not None
-        :param reinit_weights: Reinitialize weights iff this is True or weights are None
+        :param save_dir: Save best model if this is not None
         :return Tuple of best validation accuracy, training accuracy at that epoch and the epoch no.
         """
 
@@ -50,7 +50,7 @@ class RMLR:
         d = X.shape[1]
 
         # Initialize the weights
-        if reinit_weights or self.W is None:
+        if self.W is None:
             w_shape = (self.num_classes, d)
             self.W = np.random.standard_normal(w_shape) / np.sqrt(d)
             self.W[:, 0] = 0
@@ -62,6 +62,9 @@ class RMLR:
         best_epoch = 1
 
         util.log(self.log_file, "epoch,train_acc,val_acc")
+
+        train_acc_list = []
+        val_acc_list = []
 
         for epoch_idx in tqdm(range(num_epochs)):
             if print_acc:
@@ -79,27 +82,43 @@ class RMLR:
                 f = self.predict_values(x)
                 # noinspection PyTypeChecker
                 del_J = np.dot(np.transpose(f - y_c), x) / batch_size + \
-                        (lambda_ * np.c_[np.zeros(self.num_classes), self.W[:, 1:]])
+                        (self.weight_decay * np.c_[np.zeros(self.num_classes), self.W[:, 1:]])
                 self.W -= (lr * del_J)
 
             train_acc = util.get_accuracy(Y, self.predict_classes(X))
-            val_acc = util.get_accuracy(val_Y, self.predict_classes(val_X))
+            train_acc_list.append(train_acc)
 
-            if val_acc > best_val_acc:
-                best_val_acc = val_acc
-                best_train_acc = train_acc
-                best_epoch = epoch_idx + 1
-
-            util.log(self.log_file,
-                     str(epoch_idx + 1) + "," + str(train_acc) + "," + str(val_acc))
-
+            log_str = str(epoch_idx + 1) + "," + str(train_acc)
             if print_acc:
                 print("Training accuracy: " + str(train_acc))
-                print("Validation accuracy: " + str(val_acc))
+
+            if val_X is not None and val_Y is not None:
+                val_acc = util.get_accuracy(val_Y, self.predict_classes(val_X))
+                val_acc_list.append(val_acc)
+
+                log_str = log_str + "," + str(val_acc)
+                if print_acc:
+                    print("Validation accuracy: " + str(val_acc))
+                if val_acc > best_val_acc:
+                    best_val_acc = val_acc
+                    if save_dir is not None:
+                        self.save_model(save_dir)
+
+            util.log(self.log_file, log_str)
+            if print_acc:
                 print("\n------------------------------------\n")
 
         print("Training completed.")
-        return best_train_acc, best_val_acc, best_epoch
+
+        if save_dir is not None and (val_X is None or val_Y is None):
+            print("Saving model...")
+            self.save_model(save_dir)
+            print("Done.")
+
+        return train_acc_list, val_acc_list
+
+    def save_model(self, save_dir):
+        pass
 
     def predict_values(self, X):
         """
@@ -181,10 +200,11 @@ class MLP:
         print("Starting training...")
 
         best_val_acc = 0
-        best_train_acc = 0
-        best_epoch = 1
 
         util.log(self.log_file, "epoch,train_acc,val_acc")
+
+        train_acc_list = []
+        val_acc_list = []
 
         for epoch_idx in tqdm(range(num_epochs)):
             if print_acc:
@@ -207,24 +227,23 @@ class MLP:
                     grad = layer.back_propagation(grad, lr)
 
             train_acc = util.get_accuracy(Y, self.predict_classes(X))
+            train_acc_list.append(train_acc)
+
             log_str = str(epoch_idx + 1) + "," + str(train_acc)
             if print_acc:
                 print("Training accuracy: " + str(train_acc))
 
             if val_X is not None and val_Y is not None:
                 val_acc = util.get_accuracy(val_Y, self.predict_classes(val_X))
+                val_acc_list.append(val_acc)
+
                 log_str = log_str + "," + str(val_acc)
                 if print_acc:
                     print("Validation accuracy: " + str(val_acc))
                 if val_acc > best_val_acc:
                     best_val_acc = val_acc
-                    best_train_acc = train_acc
-                    best_epoch = epoch_idx + 1
                     if save_dir is not None:
                         self.save_model_weights(weights_file)
-            else:
-                best_train_acc = train_acc
-                best_epoch = epoch_idx + 1
 
             util.log(self.log_file, log_str)
             if print_acc:
@@ -235,7 +254,7 @@ class MLP:
             print("Saving model...")
             self.save_model_weights(weights_file)
             print("Done.")
-        return best_train_acc, best_val_acc, best_epoch
+        return train_acc_list, val_acc_list
 
     def forward_pass(self, X):
         """

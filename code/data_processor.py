@@ -35,6 +35,8 @@ class DataStore:
         """
         Fraction of training data to be split and used as validation set
         """
+        self.zero_centered = False
+        self.normalized = False
 
     def load_data(self, split_val=True):
         """
@@ -95,6 +97,9 @@ class DataStore:
             self.data_dict[key]['labels'] = np.array(self.data_dict[key]['labels'])
         print("Done")
 
+        self.zero_centered = False
+        self.normalized = False
+
     def create_validation_set(self, label_data_dict):
         """
         Splits the training data loaded in 'label_data_dict' into training and validation
@@ -126,7 +131,8 @@ class DataStore:
         if self.data_dict is None:
             self.load_data(split_val)
         else:
-            if split_val != ('val' in self.data_dict):
+            if split_val != ('val' in self.data_dict) or (self.zero_centered and not zero_centre) \
+              or (self.normalized and not normalize):
                 self.load_data(split_val)
 
         if split_val:
@@ -140,6 +146,7 @@ class DataStore:
             for key in key_list:
                 if len(self.data_dict[key]['data']) != 0:
                     self.data_dict[key]['data'] -= train_mean
+            self.zero_centered = True
             print("Done.")
 
         if normalize:
@@ -147,6 +154,7 @@ class DataStore:
             train_std_dev = np.std(self.data_dict['train']['data'], axis=0)
             for key in key_list:
                 self.data_dict[key]['data'] /= train_std_dev
+            self.normalized = True
             print("Done.")
 
         return self.data_dict
