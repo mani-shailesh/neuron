@@ -44,7 +44,6 @@ class RMLR:
 
         # Add dummy features for bias terms
         X = util.add_dummy_feature(X)
-        val_X = util.add_dummy_feature(val_X)
 
         n = X.shape[0]
         d = X.shape[1]
@@ -58,8 +57,6 @@ class RMLR:
         print("Starting training...")
 
         best_val_acc = 0
-        best_train_acc = 0
-        best_epoch = 1
 
         util.log(self.log_file, "epoch,train_acc,val_acc")
 
@@ -79,13 +76,13 @@ class RMLR:
                 y = Y[init_idx:init_idx + batch_size]
                 x = X[init_idx:init_idx + batch_size, :]
                 y_c = util.to_categorical(y, self.num_classes)
-                f = self.predict_values(x)
+                f = self.predict_values(x, False)
                 # noinspection PyTypeChecker
                 del_J = np.dot(np.transpose(f - y_c), x) / batch_size + \
                         (self.weight_decay * np.c_[np.zeros(self.num_classes), self.W[:, 1:]])
                 self.W -= (lr * del_J)
 
-            train_acc = util.get_accuracy(Y, self.predict_classes(X))
+            train_acc = util.get_accuracy(Y, self.predict_classes(X, False))
             train_acc_list.append(train_acc)
 
             log_str = str(epoch_idx + 1) + "," + str(train_acc)
@@ -117,27 +114,105 @@ class RMLR:
 
         return train_acc_list, val_acc_list
 
-    def save_model(self, save_dir):
-        pass
-
-    def predict_values(self, X):
+    def predict_values(self, X, add_dummy_param=True):
         """
         Predict outputs for each regressor
         :param X: np array with shape(N, D)
+        :param add_dummy_param: Add dummy parameter if this is true
+                                else assume it is already present
         :return: output np array with shape (N, C)
         """
+        if add_dummy_param:
+            X = util.add_dummy_feature(X)
         f = np.dot(X, np.transpose(self.W))
         return 1 / (1 + np.exp(-1 * f))
 
-    def predict_classes(self, X):
+    def predict_classes(self, X, add_dummy_param=True):
         """
         Predict the class labels using 'X' as test data
         :param X: numpy array of feature vectors
+        :param add_dummy_param: Add dummy parameter if this is true
+                                else assume it is already present
         :return: list of predicted class label indices
         """
-        values = self.predict_values(X)
+        values = self.predict_values(X, add_dummy_param)
         # noinspection PyTypeChecker
         return np.argmax(values, axis=1)
+
+    def save_model_json(self, json_file):
+        """
+        Save the current architecture in given path
+        :param json_file: Full path of the file to write to
+        :return:
+        """
+        json_dict = {
+            'name': self.name,
+            'weight_decay': self.weight_decay,
+            'num_classes':  self.num_classes
+        }
+        if self.log_file is not None:
+            json_dict['log_file'] = self.log_file
+        json_str = json.dumps(json_dict)
+        with open(json_file, 'w') as json_file_object:
+            json_file_object.write(json_str)
+
+    def save_model_weights(self, weights_file):
+        """
+        Save the current weights in given path
+        :param weights_file: Full path of the file to write to
+        :return:
+        """
+        with h5py.File(weights_file, 'w') as w_file_obj:
+            w_file_obj.create_dataset('w', self.W.shape, 'f', self.W)
+
+    def save_model(self, save_dir, save_weights=True):
+        """
+        Save the current architecture and weights of model in given `save_dir`
+        :param save_dir: The directory to save the model in
+        :param save_weights: Save weights as well is this is True
+        :return:
+        """
+
+        json_file = os.path.join(save_dir, self.name + '.json')
+        self.save_model_json(json_file)
+
+        if save_weights:
+            weights_file = os.path.join(save_dir, self.name + '_weights.hdf5')
+            self.save_model_weights(weights_file)
+
+    @staticmethod
+    def load_from_json(json_file_name):
+        """
+        Load a model from `json_file_name` and return an instance of this class
+        :param json_file_name: Full path to the json file.
+        :return: `RMLR` instance
+        """
+        with open(json_file_name, 'r') as json_file_obj:
+            loaded_dict = json.load(json_file_obj)
+
+        return RMLR(**loaded_dict)
+
+    def load_weights(self, weights_file_name):
+        """
+        Load weights to this model
+        :param weights_file_name: Full path to the file containing weights
+        :return:
+        """
+        with h5py.File(weights_file_name, 'r') as w_file:
+            self.W = w_file['w'][...]
+
+    @staticmethod
+    def load_model(json_file_name, weights_file_name=None):
+        """
+        Load and return model and its weights(if given)
+        :param json_file_name: Full path to the json file.
+        :param weights_file_name: Full path to the file containing weights
+        :return: `RMLR` instance
+        """
+        model = RMLR.load_from_json(json_file_name)
+        if weights_file_name is not None:
+            model.load_weights(weights_file_name)
+        return model
 
 
 class MLP:
@@ -145,7 +220,7 @@ class MLP:
     Class to represent a multi layer perceptron model composed of layers
     """
 
-    def __init__(self, input_layer, output_layer, loss, name='model', log_file=None,
+    def __init__(self, input_layer, output_layer, loss, name='model_mlp', log_file=None,
                  *args, **kwargs):
         """
         Initialize the model

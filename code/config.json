@@ -1,16 +1,16 @@
 {
   "model":  {
     "type": "MLP",
-    "name": "model_mlp_relu",
+    "name": "model_mlp",
     "num_hidden_layers":  1,
-    "num_hidden_units": [20],
+    "num_hidden_units": [10],
     "activation": "ReLU",
     "loss": "CrossEntropy"
   },
   "num_epochs": 2,
   "batch_size": 100,
   "save_dir":  null,
-  "log_file": null,
+  "log_file": "../results/log.csv",
   "learning_rate": 0.001,
   "weight_decay": 0.03,
   "normalize":  true,
