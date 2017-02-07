@@ -2,18 +2,18 @@
   "model":  {
     "type": "MLP",
     "name": "model_mlp",
-    "num_hidden_layers":  1,
-    "num_hidden_units": [10],
-    "activation": "ReLU",
-    "loss": "CrossEntropy"
+    "num_hidden_layers":  0,
+    "num_hidden_units": [],
+    "activation": "Tanh",
+    "loss": "Hinge"
   },
-  "num_epochs": 2,
+  "num_epochs": 1,
   "batch_size": 100,
   "save_dir":  null,
-  "log_file": "../results/log.csv",
+  "log_file": null,
   "learning_rate": 0.001,
   "weight_decay": 0.03,
   "normalize":  true,
-  "show_plot": true,
+  "show_plot": false,
   "print_acc":  false
 }
