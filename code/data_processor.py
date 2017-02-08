@@ -161,7 +161,11 @@ class DataStore:
 
 
 def unpickle(filename):
-    fo = open(filename, 'rb')
-    data_obj = cPickle.load(fo)
-    fo.close()
+    try:
+        with open(filename, 'rb') as fo:
+            data_obj = cPickle.load(fo)
+    except Exception as e:
+        print("Data not found! Please make sure you have all data files in " +
+              os.path.abspath('../data'))
+        data_obj = None
     return data_obj

@@ -1,19 +1,19 @@
 {
   "model":  {
     "type": "MLP",
-    "name": "model_mlp",
-    "num_hidden_layers":  0,
-    "num_hidden_units": [],
-    "activation": "Tanh",
-    "loss": "Hinge"
+    "name": "model_mlp_relu",
+    "num_hidden_layers":  1,
+    "num_hidden_units": [500],
+    "activation": "ReLU",
+    "loss": "CrossEntropy"
   },
-  "num_epochs": 1,
+  "num_epochs": 5,
   "batch_size": 100,
   "save_dir":  null,
-  "log_file": null,
+  "log_file": "log_relu.csv",
   "learning_rate": 0.001,
   "weight_decay": 0.03,
   "normalize":  true,
-  "show_plot": false,
+  "show_plot": true,
   "print_acc":  false
 }

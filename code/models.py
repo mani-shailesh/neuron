@@ -45,14 +45,20 @@ class RMLR:
         # Add dummy features for bias terms
         X = util.add_dummy_feature(X)
 
+        if save_dir is not None:
+            json_file = os.path.join(save_dir, self.name + '.json')
+            self.save_model_json(json_file)
+            weights_file = os.path.join(save_dir, self.name + '_weights.hdf5')
+
         n = X.shape[0]
         d = X.shape[1]
 
         # Initialize the weights
         if self.W is None:
             w_shape = (self.num_classes, d)
-            self.W = np.random.standard_normal(w_shape) / np.sqrt(d)
-            self.W[:, 0] = 0
+            # self.W = np.random.standard_normal(w_shape) / np.sqrt(d)
+            # self.W[:, 0] = 0
+            self.W = np.zeros(w_shape)
 
         print("Starting training...")
 
@@ -99,7 +105,7 @@ class RMLR:
                 if val_acc > best_val_acc:
                     best_val_acc = val_acc
                     if save_dir is not None:
-                        self.save_model(save_dir)
+                        self.save_model_weights(weights_file)
 
             util.log(self.log_file, log_str)
             if print_acc:
@@ -109,7 +115,7 @@ class RMLR:
 
         if save_dir is not None and (val_X is None or val_Y is None):
             print("Saving model...")
-            self.save_model(save_dir)
+            self.save_model_weights(weights_file)
             print("Done.")
 
         return train_acc_list, val_acc_list
