@@ -211,7 +211,7 @@ class SimpleRNN(Layer):
         self.h = num_units
 
         weight_shape = (self.h, self.input_shape[2])
-        self.w = np.zeros(weight_shape) * np.sqrt(2.0 / self.input_shape[2])
+        self.w = np.random.standard_normal(weight_shape) * np.sqrt(2.0 / self.input_shape[2])
         r_weight_shape = (self.h,)
         self.rw = np.zeros(r_weight_shape)  # recurrent weights
         self.b = np.zeros(r_weight_shape)  # bias weights
@@ -378,7 +378,7 @@ class ReLU(Activation):
         :return: numpy array of shape same as input
         """
         self.Y = np.copy(X)
-        self.Y[X <= 0] = 0
+        self.Y[X < 0] = 0
         return self.Y
 
     def back_propagation(self, d, lr):
@@ -387,7 +387,30 @@ class ReLU(Activation):
         :param lr:  Learning rate
         :return: N x D numpy array of gradients
         """
-        return (self.Y > 0) * d
+        return (self.Y >= 0) * d
+
+
+class Identity(Activation):
+    """
+    Identity activation layer
+    """
+
+    def forward_pass(self, X):
+        """
+        Perform forward pass on the input
+        :param X: input numpy array
+        :return: numpy array of shape same as input
+        """
+        self.Y = np.copy(X)
+        return self.Y
+
+    def back_propagation(self, d, lr):
+        """
+        :param d:   Gradients being passed back (N x D)
+        :param lr:  Learning rate
+        :return: N x D numpy array of gradients
+        """
+        return d
 
 
 class LeakyReLU(Activation):

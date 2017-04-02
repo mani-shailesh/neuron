@@ -2,6 +2,8 @@ import cPickle
 import os
 import random
 
+import util
+
 import numpy as np
 
 DATA_DIR = "../data"
@@ -173,6 +175,10 @@ class RNNDataStore:
         self.train_set_list = []
         self.test_set_list = []
 
+        self.mean = None
+        self.std_dev = None
+        self.squashed = False
+
     def load_data(self):
         """
         Load data from files into the memory
@@ -208,7 +214,7 @@ class RNNDataStore:
         self.train_set_list = np.array(train_set_list)
         self.test_set_list = np.array(test_set_list)
 
-    def get_data(self, sequence_len, input_dim, output_dim, zero_centre=True, normalize=True, val_fraction=0.3):
+    def get_data(self, sequence_len, input_dim, output_dim, zero_centre=True, normalize=True, val_fraction=0.3, min_zero_max_one=False):
         """
         Return loaded data in proper format
         :param sequence_len: Number of time steps in each instance
@@ -217,6 +223,7 @@ class RNNDataStore:
         :param zero_centre: Perform zero centering on data if this is True
         :param normalize: Normalize the data if this is True
         :param val_fraction: Fraction of training data to be returned as validation data
+        :param min_zero_max_one: Squash the data between 0 and 1 if this is True
         :return: tuple : ((train_x, train_y), (val_x), (val_y))
         where train_x, val_x are numpy arrays of shape (None, sequence_len, input_dim),
         train_y, val_y are numpy array of shape (None, output_dim)
@@ -273,6 +280,14 @@ class RNNDataStore:
             val_y /= train_std_dev
             print("Done.")
 
+        if min_zero_max_one:
+            print("Squashing the data between 0 and 1...")
+            train_x = util.sigmoid(train_x)
+            train_y = util.sigmoid(train_y)
+            val_x = util.sigmoid(val_x)
+            val_y = util.sigmoid(val_y)
+            print("Done.")
+
         return (train_x, train_y), (val_x, val_y)
 
     @staticmethod
@@ -287,7 +302,7 @@ class RNNDataStore:
         numpy array of shape (None, sequence_len, input_dim), numpy array of shape (None, output_dim)
         """
         data_x, data_y = [], []
-        for ii in range(0, len(dataset) - sequence_len * input_dim - output_dim + 1):
+        for ii in range(0, len(dataset) - sequence_len * input_dim - output_dim + 1, input_dim):
             data_x.append(np.reshape(dataset[ii:ii + sequence_len * input_dim], (sequence_len, input_dim)))
             data_y.append(dataset[ii + sequence_len * input_dim:ii + sequence_len * input_dim + output_dim])
         return np.array(data_x), np.array(data_y)

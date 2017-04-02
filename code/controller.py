@@ -2,6 +2,7 @@
 import sys
 import json
 import matplotlib.pyplot as plt
+import numpy as np
 
 import data_processor
 import layers
@@ -162,7 +163,13 @@ def main(config_json_file):
 def create_rnn_model(sequence_len, input_dim, output_dim, batch_size, val_fraction, lr, num_epochs, activation, show_plots):
     data_store = data_processor.RNNDataStore()
     data_store.load_data()
-    (train_x, train_y), (val_x, val_y) = data_store.get_data(sequence_len, input_dim, output_dim, val_fraction)
+    (train_x, train_y), (val_x, val_y) = data_store.get_data(
+        sequence_len,
+        input_dim,
+        output_dim,
+        val_fraction,
+        min_zero_max_one=True
+    )
 
     input_shape = (batch_size, sequence_len, input_dim)
 
@@ -214,22 +221,38 @@ def create_rnn_model(sequence_len, input_dim, output_dim, batch_size, val_fracti
         #       " epochs is " +
         #       str(test_acc) + ".")
 
+        original_train = np.reshape(train_y, np.product(train_y.shape))
+        predicted_train = np.reshape(model.forward_pass(train_x), np.product(train_y.shape))
+
+        original_val = np.reshape(val_y, np.product(val_y.shape))
+        predicted_val = np.reshape(model.forward_pass(val_x), np.product(val_y.shape))
+
         if show_plots:
-            plot_train, = plt.plot(
-                range(1, num_epochs + 1),
-                train_loss_list,
-                label="Training Loss"
+            plot_sequences(
+                [train_loss_list, val_loss_list],
+                ['Training Loss', 'Validation Loss'],
+                'Learning Curve',
+                '# Epochs',
+                'Loss'
             )
-            plot_val, = plt.plot(
-                range(1, num_epochs + 1),
-                val_loss_list,
-                label="Validation Loss"
+            plot_sequences(
+                [original_train, predicted_train],
+                ['Original Values', 'Predicted Values'],
+                'Training Performance',
+                'Value #',
+                'Value'
             )
-            plot_val.axes.set_xlabel('# Epochs')
-            plot_val.axes.set_ylabel('Loss')
-            plt.legend(ncol=1, fancybox=True, shadow=True)
-            plt.show(block=False)
+            plot_sequences(
+                [original_val, predicted_val],
+                ['Original Values', 'Predicted Values'],
+                'Validation Performance',
+                'Value #',
+                'Value'
+            )
             print("Plots have been displayed.")
+
+        return (original_train, predicted_train), \
+               (original_val, predicted_val)
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
@@ -237,3 +260,17 @@ if __name__ == '__main__':
     else:
         config_file = 'config.json'
     main(config_file)
+
+
+def plot_sequences(sequence_list, label_list, title, xlabel, ylabel):
+    for idx, sequence in enumerate(sequence_list):
+        plot_obj, = plt.plot(
+            range(1, len(sequence) + 1),
+            sequence,
+            label=label_list[idx]
+        )
+    plot_obj.axes.set_xlabel(xlabel)
+    plot_obj.axes.set_ylabel(ylabel)
+    plt.legend(ncol=1, fancybox=True, shadow=True)
+    plt.title(title)
+    plt.show(block=True)
