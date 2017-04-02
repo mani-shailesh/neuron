@@ -60,4 +60,3 @@ def get_lists_from_csv(filename):
         for header in header_list:
             ret_dict[header].append(row[header])
     return ret_dict
-
