@@ -12,7 +12,7 @@ class DataStore:
     """
     Class to handle all raw data related operations
     """
-    def __init__(self, data_dir=DATA_DIR, num_train_files=NUM_TRAIN_FILES, validation_fraction=0.2):
+    def __init__(self, data_dir=DATA_DIR, num_train_files=NUM_TRAIN_FILES, val_fraction=0.2):
         self.data_dir = data_dir
         self.num_train_files = num_train_files
         """
@@ -31,7 +31,7 @@ class DataStore:
         Each value is a dictionary with following keys:
         'name'
         """
-        self.validation_fraction = validation_fraction
+        self.validation_fraction = val_fraction
         """
         Fraction of training data to be split and used as validation set
         """
@@ -158,6 +158,113 @@ class DataStore:
             print("Done.")
 
         return self.data_dict
+
+
+class RNNDataStore:
+    """
+    DataStore class to load data for training of RNNs
+    """
+    def __init__(self, data_dir=DATA_DIR):
+        """
+        Initializer for the RNNDataStore class
+        :param data_dir: Directory to read data files from
+        """
+        self.data_dir = data_dir
+        self.train_set_list = []
+        self.test_set_list = []
+
+    def load_data(self):
+        """
+        Load data from files into the memory
+        """
+        train_set_list, test_set_list = [], []
+
+        with open('train.txt') as train_file:
+            train_set = []
+            last_num = 0
+            for idx, line in train_file.readlines():
+                num, val = line.split(',')
+                num, val = int(num), int(val)
+                if idx > 0 and num != last_num + 1 and len(train_set) > 0:
+                    train_set_list.append(train_set)
+                    train_set = []
+                train_set.append((num, val))
+                last_num = num
+            train_set_list.append(train_set)
+
+        with open('test.txt') as test_file:
+            test_set = []
+            last_num = 0
+            for idx, line in test_file.readlines():
+                num, val = line.split(',')
+                num, val = int(num), int(val)
+                if idx > 0 and num != last_num + 1 and len(test_set) > 0:
+                    test_set_list.append(test_set)
+                    test_set = []
+                test_set.append((num, val))
+                last_num = num
+            test_set_list.append(test_set)
+
+        self.train_set_list = np.array(train_set_list)
+        self.test_set_list = np.array(test_set_list)
+
+    def get_data(self, sequence_len, input_dim, output_dim, val_fraction=0.3):
+        """
+        Return loaded data in proper format
+        :param sequence_len: Number of time steps in each instance
+        :param input_dim: Dimension of input at each time step
+        :param output_dim: Dimension of output for each instance
+        :param val_fraction: Fraction of training data to be returned as validation data
+        :return: tuple : ((train_x, train_y), (val_x), (val_y))
+        where train_x, val_x are numpy arrays of shape (None, sequence_len, input_dim),
+        train_y, val_y are numpy array of shape (None, output_dim)
+        """
+        train_x = None
+        train_y = None
+        val_x = None
+        val_y = None
+
+        for train_set in self.train_set_list:
+            split_idx = int(len(train_set) * (1 - val_fraction))
+            formatted_train_set = RNNDataStore.format_dataset(
+                train_set[0:split_idx, 1], sequence_len, input_dim, output_dim
+            )
+            formatted_val_set = RNNDataStore.format_dataset(
+                train_set[split_idx:, 1], sequence_len, input_dim, output_dim
+            )
+
+            if train_x is None:
+                train_x = formatted_train_set[0]
+                train_y = formatted_train_set[1]
+            else:
+                np.concatenate((train_x, formatted_train_set[0]), axis=0)
+                np.concatenate((train_y, formatted_train_set[1]), axis=0)
+
+            if val_x is None:
+                val_x = formatted_val_set[0]
+                val_y = formatted_val_set[1]
+            else:
+                np.concatenate((val_x, formatted_val_set[0]), axis=0)
+                np.concatenate((val_y, formatted_val_set[1]), axis=0)
+
+        return (train_x, train_y), (val_x, val_y)
+
+    @staticmethod
+    def format_dataset(dataset, sequence_len, input_dim, output_dim):
+        """
+        Function to convert a sequential `dataset` into time series data
+        :param dataset: 1-D List containing sequential data
+        :param sequence_len: Number of time steps in each instance
+        :param input_dim: Dimension of input at each time step
+        :param output_dim: Dimension of output for each instance
+        :return: tuple containing : 
+        numpy array of shape (None, sequence_len, input_dim), numpy array of shape (None, output_dim)
+        """
+        data_x, data_y = [], []
+        for ii in range(0, len(dataset) - sequence_len * input_dim - output_dim + 1, input_dim):
+            data_x.append(np.reshape(dataset[ii:ii + sequence_len * input_dim], (sequence_len, input_dim)))
+            data_y.append(dataset[ii + sequence_len * input_dim:ii + sequence_len * input_dim + output_dim])
+        return np.array(data_x), np.array(data_y)
 
 
 def unpickle(filename):
