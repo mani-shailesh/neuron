@@ -179,12 +179,12 @@ class RNNDataStore:
         """
         train_set_list, test_set_list = [], []
 
-        with open('train.txt') as train_file:
+        with open(os.path.join(self.data_dir, 'train.txt')) as train_file:
             train_set = []
             last_num = 0
-            for idx, line in train_file.readlines():
-                num, val = line.split(',')
-                num, val = int(num), int(val)
+            for idx, line in enumerate(train_file.readlines()):
+                num, val = line.strip().split(',')
+                num, val = int(num), float(val)
                 if idx > 0 and num != last_num + 1 and len(train_set) > 0:
                     train_set_list.append(train_set)
                     train_set = []
@@ -192,12 +192,12 @@ class RNNDataStore:
                 last_num = num
             train_set_list.append(train_set)
 
-        with open('test.txt') as test_file:
+        with open(os.path.join(self.data_dir, 'test.txt')) as test_file:
             test_set = []
             last_num = 0
-            for idx, line in test_file.readlines():
-                num, val = line.split(',')
-                num, val = int(num), int(val)
+            for idx, line in enumerate(test_file.readlines()):
+                num, val = line.strip().split(',')
+                num, val = int(num), float(val)
                 if idx > 0 and num != last_num + 1 and len(test_set) > 0:
                     test_set_list.append(test_set)
                     test_set = []
@@ -208,12 +208,14 @@ class RNNDataStore:
         self.train_set_list = np.array(train_set_list)
         self.test_set_list = np.array(test_set_list)
 
-    def get_data(self, sequence_len, input_dim, output_dim, val_fraction=0.3):
+    def get_data(self, sequence_len, input_dim, output_dim, zero_centre=True, normalize=True, val_fraction=0.3):
         """
         Return loaded data in proper format
         :param sequence_len: Number of time steps in each instance
         :param input_dim: Dimension of input at each time step
         :param output_dim: Dimension of output for each instance
+        :param zero_centre: Perform zero centering on data if this is True
+        :param normalize: Normalize the data if this is True
         :param val_fraction: Fraction of training data to be returned as validation data
         :return: tuple : ((train_x, train_y), (val_x), (val_y))
         where train_x, val_x are numpy arrays of shape (None, sequence_len, input_dim),
@@ -224,11 +226,17 @@ class RNNDataStore:
         val_x = None
         val_y = None
 
+        complete_train_set = []
+
         for train_set in self.train_set_list:
             split_idx = int(len(train_set) * (1 - val_fraction))
+
+            complete_train_set.extend(train_set[0:split_idx, 1])
+
             formatted_train_set = RNNDataStore.format_dataset(
                 train_set[0:split_idx, 1], sequence_len, input_dim, output_dim
             )
+
             formatted_val_set = RNNDataStore.format_dataset(
                 train_set[split_idx:, 1], sequence_len, input_dim, output_dim
             )
@@ -237,15 +245,33 @@ class RNNDataStore:
                 train_x = formatted_train_set[0]
                 train_y = formatted_train_set[1]
             else:
-                np.concatenate((train_x, formatted_train_set[0]), axis=0)
-                np.concatenate((train_y, formatted_train_set[1]), axis=0)
+                train_x = np.concatenate((train_x, formatted_train_set[0]), axis=0)
+                train_y = np.concatenate((train_y, formatted_train_set[1]), axis=0)
 
             if val_x is None:
                 val_x = formatted_val_set[0]
                 val_y = formatted_val_set[1]
             else:
-                np.concatenate((val_x, formatted_val_set[0]), axis=0)
-                np.concatenate((val_y, formatted_val_set[1]), axis=0)
+                val_x = np.concatenate((val_x, formatted_val_set[0]), axis=0)
+                val_y = np.concatenate((val_y, formatted_val_set[1]), axis=0)
+
+        if zero_centre:
+            print("Zero centering the data...")
+            train_mean = np.mean(complete_train_set)
+            train_x -= train_mean
+            train_y -= train_mean
+            val_x -= train_mean
+            val_y -= train_mean
+            print("Done.")
+
+        if normalize:
+            print("Normalizing the data...")
+            train_std_dev = np.std(complete_train_set)
+            train_x /= train_std_dev
+            train_y /= train_std_dev
+            val_x /= train_std_dev
+            val_y /= train_std_dev
+            print("Done.")
 
         return (train_x, train_y), (val_x, val_y)
 
@@ -261,7 +287,7 @@ class RNNDataStore:
         numpy array of shape (None, sequence_len, input_dim), numpy array of shape (None, output_dim)
         """
         data_x, data_y = [], []
-        for ii in range(0, len(dataset) - sequence_len * input_dim - output_dim + 1, input_dim):
+        for ii in range(0, len(dataset) - sequence_len * input_dim - output_dim + 1):
             data_x.append(np.reshape(dataset[ii:ii + sequence_len * input_dim], (sequence_len, input_dim)))
             data_y.append(dataset[ii + sequence_len * input_dim:ii + sequence_len * input_dim + output_dim])
         return np.array(data_x), np.array(data_y)

@@ -211,9 +211,9 @@ class SimpleRNN(Layer):
         self.h = num_units
 
         weight_shape = (self.h, self.input_shape[2])
-        self.w = np.random.standard_normal(weight_shape) * np.sqrt(2.0 / self.input_shape[2])
+        self.w = np.zeros(weight_shape) * np.sqrt(2.0 / self.input_shape[2])
         r_weight_shape = (self.h,)
-        self.rw = np.random.standard_normal(r_weight_shape)  # recurrent weights
+        self.rw = np.zeros(r_weight_shape)  # recurrent weights
         self.b = np.zeros(r_weight_shape)  # bias weights
 
         self.activation = activation
@@ -240,7 +240,7 @@ class SimpleRNN(Layer):
         :return: numpy array - (N x H)
         """
         self.X = np.copy(X)
-        O = np.zeros(self.get_output_shape())
+        O = np.zeros((self.X.shape[0], self.h))
         for ii in range(self.input_shape[1]):
             H = np.dot(X[:, ii, :], np.transpose(self.w))
             O = H + np.dot(O, np.diag(self.rw)) + self.b
@@ -255,7 +255,7 @@ class SimpleRNN(Layer):
         :return: N x T x D numpy array of gradients
         """
 
-        new_d = np.zeros(self.input_shape)
+        new_d = np.zeros(self.X.shape)
         d_w = np.zeros(self.w.shape)
         d_rw = np.zeros(self.rw.shape)
         d_b = np.zeros(self.b.shape)

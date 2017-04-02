@@ -120,7 +120,7 @@ def main(config_json_file):
             num_epochs=config_dict['num_epochs'],
             val_X=val_x,
             val_Y=val_y,
-            print_acc=config_dict['print_acc'],
+            print_loss=config_dict['print_acc'],
             save_dir=config_dict['save_dir']
         )
         print("Done.")
@@ -158,6 +158,78 @@ def main(config_json_file):
             plt.show(block=True)
             print("Plots have been displayed.")
 
+
+def create_rnn_model(sequence_len, input_dim, output_dim, batch_size, val_fraction, lr, num_epochs, activation, show_plots):
+    data_store = data_processor.RNNDataStore()
+    data_store.load_data()
+    (train_x, train_y), (val_x, val_y) = data_store.get_data(sequence_len, input_dim, output_dim, val_fraction)
+
+    input_shape = (batch_size, sequence_len, input_dim)
+
+    print("\nCreating model...")
+    simple_rnn = layers.SimpleRNN(
+        num_units=output_dim,
+        activation=activation,
+        input_shape=input_shape,
+        name='simple_rnn_1'
+    )
+    model = models.MLP(
+        input_layer=simple_rnn,
+        output_layer=simple_rnn,
+        loss=layers.MeanSquaredError(),
+        log_file='../results/log_rnn.csv',
+        name='rnn_model'
+    )
+    print("Done.")
+
+    if model is not None:
+        print("\nTraining model...")
+        train_loss_list, val_loss_list = model.train(
+            X=train_x,
+            Y=train_y,
+            lr=lr,
+            batch_size=batch_size,
+            num_epochs=num_epochs,
+            is_classification=False,
+            val_X=val_x,
+            val_Y=val_y,
+            print_loss=False,
+            save_dir=None
+        )
+        print("Done.")
+
+        min_val_loss = min(val_loss_list)
+        epoch_idx = val_loss_list.index(min_val_loss)
+        print("Minimum validation loss is " +
+              str(min_val_loss) +
+              " at epoch #" +
+              str(epoch_idx + 1) +
+              ". Training loss at that epoch is " +
+              str(train_loss_list[epoch_idx]))
+
+        # print("Calculating test accuracy...")
+        # test_acc = util.get_accuracy(test_y, model.predict_classes(test_x))
+        # print("Test accuracy after " +
+        #       str(config_dict['num_epochs']) +
+        #       " epochs is " +
+        #       str(test_acc) + ".")
+
+        if show_plots:
+            plot_train, = plt.plot(
+                range(1, num_epochs + 1),
+                train_loss_list,
+                label="Training Loss"
+            )
+            plot_val, = plt.plot(
+                range(1, num_epochs + 1),
+                val_loss_list,
+                label="Validation Loss"
+            )
+            plot_val.axes.set_xlabel('# Epochs')
+            plot_val.axes.set_ylabel('Loss')
+            plt.legend(ncol=1, fancybox=True, shadow=True)
+            plt.show(block=False)
+            print("Plots have been displayed.")
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:
