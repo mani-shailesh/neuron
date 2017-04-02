@@ -464,17 +464,17 @@ class Loss:
 
     def get_loss_value(self, Y, O):
         """
-        :param Y: Actual outputs (categorical) (N x C)
-        :param O: Predicted outputs (N x C)
+        :param Y: Actual outputs (N x D)
+        :param O: Predicted outputs (N x D)
         :return: Column vector (N x 1) of loss values
         """
         pass
 
     def get_gradient(self, Y, O):
         """
-        :param Y: Actual outputs (categorical) (N x C)
-        :param O: Predicted outputs (N x C)
-        :return:   Gradient numpy array (N x C)
+        :param Y: Actual outputs (N x D)
+        :param O: Predicted outputs (N x D)
+        :return:   Gradient numpy array (N x D)
         """
         pass
 
@@ -531,3 +531,25 @@ class Hinge(Loss):
         grad[l > 0] = 1
         grad[range(O.shape[0]), np.argmax(Y, axis=1)] = -1 * (np.sum(grad, axis=1) - 1)
         return grad
+
+
+class MeanSquaredError(Loss):
+    """
+    Mean squared error as the loss layer
+    """
+
+    def get_loss_value(self, Y, O):
+        """
+        :param Y: Actual outputs (N x D)
+        :param O: Predicted outputs (N x D)
+        :return: Column vector (N x 1) of loss values
+        """
+        return np.c_[np.mean(np.power(Y - O, 2), axis=1)] / 2
+
+    def get_gradient(self, Y, O):
+        """
+        :param Y: Actual outputs (N x D)
+        :param O: Predicted outputs (N x D)
+        :return:   Gradient numpy array (N x D)
+        """
+        return (O - Y) / O.shape[0]
