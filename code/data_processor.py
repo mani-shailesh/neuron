@@ -175,7 +175,7 @@ class RNNDataStore:
         self.train_set_list = []
         self.test_set_list = []
 
-        self.mean = None
+        self.train_mean = None
         self.std_dev = None
         self.squashed = False
 
@@ -214,12 +214,13 @@ class RNNDataStore:
         self.train_set_list = np.array(train_set_list)
         self.test_set_list = np.array(test_set_list)
 
-    def get_data(self, sequence_len, input_dim, output_dim, zero_centre=True, normalize=True, val_fraction=0.3, min_zero_max_one=False):
+    def get_data(self, sequence_len, input_dim, output_dim_train, output_dim_val, zero_centre=True, normalize=True, val_fraction=0.3, min_zero_max_one=False):
         """
         Return loaded data in proper format
         :param sequence_len: Number of time steps in each instance
         :param input_dim: Dimension of input at each time step
-        :param output_dim: Dimension of output for each instance
+        :param output_dim_train: Dimension of output for each instance in training set
+        :param output_dim_val: Dimension of output for each instance in validation set
         :param zero_centre: Perform zero centering on data if this is True
         :param normalize: Normalize the data if this is True
         :param val_fraction: Fraction of training data to be returned as validation data
@@ -240,12 +241,12 @@ class RNNDataStore:
 
             complete_train_set.extend(train_set[0:split_idx, 1])
 
-            formatted_train_set = RNNDataStore.format_dataset(
-                train_set[0:split_idx, 1], sequence_len, input_dim, output_dim
+            formatted_train_set = util.convert_to_time_series(
+                train_set[0:split_idx, 1], sequence_len, input_dim, output_dim_train
             )
 
-            formatted_val_set = RNNDataStore.format_dataset(
-                train_set[split_idx:, 1], sequence_len, input_dim, output_dim
+            formatted_val_set = util.convert_to_time_series(
+                train_set[split_idx:, 1], sequence_len, input_dim, output_dim_val
             )
 
             if train_x is None:
@@ -264,20 +265,20 @@ class RNNDataStore:
 
         if zero_centre:
             print("Zero centering the data...")
-            train_mean = np.mean(complete_train_set)
-            train_x -= train_mean
-            train_y -= train_mean
-            val_x -= train_mean
-            val_y -= train_mean
+            self.train_mean = np.mean(complete_train_set)
+            train_x -= self.train_mean
+            train_y -= self.train_mean
+            val_x -= self.train_mean
+            val_y -= self.train_mean
             print("Done.")
 
         if normalize:
             print("Normalizing the data...")
-            train_std_dev = np.std(complete_train_set)
-            train_x /= train_std_dev
-            train_y /= train_std_dev
-            val_x /= train_std_dev
-            val_y /= train_std_dev
+            self.train_std_dev = np.std(complete_train_set)
+            train_x /= self.train_std_dev
+            train_y /= self.train_std_dev
+            val_x /= self.train_std_dev
+            val_y /= self.train_std_dev
             print("Done.")
 
         if min_zero_max_one:
@@ -286,26 +287,22 @@ class RNNDataStore:
             train_y = util.sigmoid(train_y)
             val_x = util.sigmoid(val_x)
             val_y = util.sigmoid(val_y)
+            self.squashed = True
             print("Done.")
 
         return (train_x, train_y), (val_x, val_y)
 
-    @staticmethod
-    def format_dataset(dataset, sequence_len, input_dim, output_dim):
+    def restore_data(self, data):
         """
-        Function to convert a sequential `dataset` into time series data
-        :param dataset: 1-D List containing sequential data
-        :param sequence_len: Number of time steps in each instance
-        :param input_dim: Dimension of input at each time step
-        :param output_dim: Dimension of output for each instance
-        :return: tuple containing : 
-        numpy array of shape (None, sequence_len, input_dim), numpy array of shape (None, output_dim)
+        Restore data to its original form by applying inverse of data pre processing operations. 
         """
-        data_x, data_y = [], []
-        for ii in range(0, len(dataset) - sequence_len * input_dim - output_dim + 1, input_dim):
-            data_x.append(np.reshape(dataset[ii:ii + sequence_len * input_dim], (sequence_len, input_dim)))
-            data_y.append(dataset[ii + sequence_len * input_dim:ii + sequence_len * input_dim + output_dim])
-        return np.array(data_x), np.array(data_y)
+        if self.squashed:
+            data = util.logit(data)
+        if self.train_std_dev is not None:
+            data *= self.train_std_dev
+        if self.train_mean is not None:
+            data += self.train_mean
+        return data
 
 
 def unpickle(filename):

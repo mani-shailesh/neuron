@@ -40,7 +40,7 @@ def create_model_from_dict(config_dict, input_shape):
             act_class = getattr(layers, str(model_dict['activation']))
             act = act_class(
                 input_layer=dense,
-                name=str(model_dict['activation'])+str(idx + 1)
+                name=str(model_dict['activation']) + str(idx + 1)
             )
             output_layer = act
         if output_layer is None:
@@ -160,14 +160,16 @@ def main(config_json_file):
             print("Plots have been displayed.")
 
 
-def create_rnn_model(sequence_len, input_dim, output_dim, batch_size, val_fraction, lr, num_epochs, activation, show_plots):
+def create_rnn_model(sequence_len, input_dim, output_dim_train, output_dim_val, num_hidden_units, batch_size, val_fraction, lr, num_epochs, activation,
+                     show_plots):
     data_store = data_processor.RNNDataStore()
     data_store.load_data()
     (train_x, train_y), (val_x, val_y) = data_store.get_data(
         sequence_len,
         input_dim,
-        output_dim,
-        val_fraction,
+        output_dim_train,
+        output_dim_val,
+        val_fraction=val_fraction,
         min_zero_max_one=True
     )
 
@@ -175,14 +177,23 @@ def create_rnn_model(sequence_len, input_dim, output_dim, batch_size, val_fracti
 
     print("\nCreating model...")
     simple_rnn = layers.SimpleRNN(
-        num_units=output_dim,
+        num_units=num_hidden_units,
         activation=activation,
         input_shape=input_shape,
         name='simple_rnn_1'
     )
+    dense = layers.Dense(
+        num_units=output_dim_train,
+        input_layer=simple_rnn,
+        name='dense_1'
+    )
+    activation = getattr(layers, activation)(
+        input_layer=dense,
+        name='act_1'
+    )
     model = models.MLP(
         input_layer=simple_rnn,
-        output_layer=simple_rnn,
+        output_layer=activation,
         loss=layers.MeanSquaredError(),
         log_file='../results/log_rnn.csv',
         name='rnn_model'
@@ -221,11 +232,20 @@ def create_rnn_model(sequence_len, input_dim, output_dim, batch_size, val_fracti
         #       " epochs is " +
         #       str(test_acc) + ".")
 
-        original_train = np.reshape(train_y, np.product(train_y.shape))
-        predicted_train = np.reshape(model.forward_pass(train_x), np.product(train_y.shape))
+        original_train = data_store.restore_data(np.reshape(train_y, np.product(train_y.shape)))
+        predicted_train = data_store.restore_data(np.reshape(model.forward_pass(train_x), np.product(train_y.shape)))
 
-        original_val = np.reshape(val_y, np.product(val_y.shape))
-        predicted_val = np.reshape(model.forward_pass(val_x), np.product(val_y.shape))
+        original_val = data_store.restore_data(np.reshape(val_y, np.product(val_y.shape)))
+        predicted_val = data_store.restore_data(
+            np.reshape(
+                util.get_predictions(model, val_x, val_y.shape[1]),
+                np.product(val_y.shape)
+            )
+        )
+
+        print("After " + str(num_epochs) + ":")
+        print("MSE for predictions on training set: " + str(util.mse(original_train, predicted_train)))
+        print("MSE for predictions on validation set: " + str(util.mse(original_val, predicted_val)))
 
         if show_plots:
             plot_sequences(
@@ -253,6 +273,7 @@ def create_rnn_model(sequence_len, input_dim, output_dim, batch_size, val_fracti
 
         return (original_train, predicted_train), \
                (original_val, predicted_val)
+
 
 if __name__ == '__main__':
     if len(sys.argv) > 1:

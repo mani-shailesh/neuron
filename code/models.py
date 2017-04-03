@@ -320,8 +320,8 @@ class MLP:
             if print_loss:
                 print("Training loss: " + str(train_loss))
 
-            if val_X is not None and val_Y is not None:
-                val_loss = np.mean(self.loss.get_loss_value(val_Y, self.forward_pass(val_X)))
+            if val_X is not None and val_Y is not None and len(val_X) > 0 and len(val_Y) > 0:
+                val_loss = np.mean(self.loss.get_loss_value(val_Y, util.get_predictions(self, val_X, val_Y.shape[1])))
                 val_loss_list.append(val_loss)
 
                 log_str = log_str + "," + str(val_loss)
