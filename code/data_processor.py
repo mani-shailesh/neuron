@@ -2,6 +2,8 @@ import cPickle
 import os
 import random
 
+import util
+
 import numpy as np
 
 DATA_DIR = "../data"
@@ -12,7 +14,7 @@ class DataStore:
     """
     Class to handle all raw data related operations
     """
-    def __init__(self, data_dir=DATA_DIR, num_train_files=NUM_TRAIN_FILES, validation_fraction=0.2):
+    def __init__(self, data_dir=DATA_DIR, num_train_files=NUM_TRAIN_FILES, val_fraction=0.2):
         self.data_dir = data_dir
         self.num_train_files = num_train_files
         """
@@ -31,7 +33,7 @@ class DataStore:
         Each value is a dictionary with following keys:
         'name'
         """
-        self.validation_fraction = validation_fraction
+        self.validation_fraction = val_fraction
         """
         Fraction of training data to be split and used as validation set
         """
@@ -158,6 +160,149 @@ class DataStore:
             print("Done.")
 
         return self.data_dict
+
+
+class RNNDataStore:
+    """
+    DataStore class to load data for training of RNNs
+    """
+    def __init__(self, data_dir=DATA_DIR):
+        """
+        Initializer for the RNNDataStore class
+        :param data_dir: Directory to read data files from
+        """
+        self.data_dir = data_dir
+        self.train_set_list = []
+        self.test_set_list = []
+
+        self.train_mean = None
+        self.std_dev = None
+        self.squashed = False
+
+    def load_data(self):
+        """
+        Load data from files into the memory
+        """
+        train_set_list, test_set_list = [], []
+
+        with open(os.path.join(self.data_dir, 'train.txt')) as train_file:
+            train_set = []
+            last_num = 0
+            for idx, line in enumerate(train_file.readlines()):
+                num, val = line.strip().split(',')
+                num, val = int(num), float(val)
+                if idx > 0 and num != last_num + 1 and len(train_set) > 0:
+                    train_set_list.append(train_set)
+                    train_set = []
+                train_set.append((num, val))
+                last_num = num
+            train_set_list.append(train_set)
+
+        with open(os.path.join(self.data_dir, 'test.txt')) as test_file:
+            test_set = []
+            last_num = 0
+            for idx, line in enumerate(test_file.readlines()):
+                num, val = line.strip().split(',')
+                num, val = int(num), float(val)
+                if idx > 0 and num != last_num + 1 and len(test_set) > 0:
+                    test_set_list.append(test_set)
+                    test_set = []
+                test_set.append((num, val))
+                last_num = num
+            test_set_list.append(test_set)
+
+        self.train_set_list = np.array(train_set_list)
+        self.test_set_list = np.array(test_set_list)
+
+    def get_data(self, sequence_len, input_dim, output_dim_train, output_dim_val, zero_centre=True, normalize=True, val_fraction=0.3, min_zero_max_one=False):
+        """
+        Return loaded data in proper format
+        :param sequence_len: Number of time steps in each instance
+        :param input_dim: Dimension of input at each time step
+        :param output_dim_train: Dimension of output for each instance in training set
+        :param output_dim_val: Dimension of output for each instance in validation set
+        :param zero_centre: Perform zero centering on data if this is True
+        :param normalize: Normalize the data if this is True
+        :param val_fraction: Fraction of training data to be returned as validation data
+        :param min_zero_max_one: Squash the data between 0 and 1 if this is True
+        :return: tuple : ((train_x, train_y), (val_x), (val_y))
+        where train_x, val_x are numpy arrays of shape (None, sequence_len, input_dim),
+        train_y, val_y are numpy array of shape (None, output_dim)
+        """
+        train_x = None
+        train_y = None
+        val_x = None
+        val_y = None
+
+        complete_train_set = []
+
+        for train_set in self.train_set_list:
+            split_idx = int(len(train_set) * (1 - val_fraction))
+
+            complete_train_set.extend(train_set[0:split_idx, 1])
+
+            formatted_train_set = util.convert_to_time_series(
+                train_set[0:split_idx, 1], sequence_len, input_dim, output_dim_train
+            )
+
+            formatted_val_set = util.convert_to_time_series(
+                train_set[split_idx:, 1], sequence_len, input_dim, output_dim_val
+            )
+
+            if train_x is None:
+                train_x = formatted_train_set[0]
+                train_y = formatted_train_set[1]
+            else:
+                train_x = np.concatenate((train_x, formatted_train_set[0]), axis=0)
+                train_y = np.concatenate((train_y, formatted_train_set[1]), axis=0)
+
+            if val_x is None:
+                val_x = formatted_val_set[0]
+                val_y = formatted_val_set[1]
+            else:
+                val_x = np.concatenate((val_x, formatted_val_set[0]), axis=0)
+                val_y = np.concatenate((val_y, formatted_val_set[1]), axis=0)
+
+        if zero_centre:
+            print("Zero centering the data...")
+            self.train_mean = np.mean(complete_train_set)
+            train_x -= self.train_mean
+            train_y -= self.train_mean
+            val_x -= self.train_mean
+            val_y -= self.train_mean
+            print("Done.")
+
+        if normalize:
+            print("Normalizing the data...")
+            self.train_std_dev = np.std(complete_train_set)
+            train_x /= self.train_std_dev
+            train_y /= self.train_std_dev
+            val_x /= self.train_std_dev
+            val_y /= self.train_std_dev
+            print("Done.")
+
+        if min_zero_max_one:
+            print("Squashing the data between 0 and 1...")
+            train_x = util.sigmoid(train_x)
+            train_y = util.sigmoid(train_y)
+            val_x = util.sigmoid(val_x)
+            val_y = util.sigmoid(val_y)
+            self.squashed = True
+            print("Done.")
+
+        return (train_x, train_y), (val_x, val_y)
+
+    def restore_data(self, data):
+        """
+        Restore data to its original form by applying inverse of data pre processing operations. 
+        """
+        if self.squashed:
+            data = util.logit(data)
+        if self.train_std_dev is not None:
+            data *= self.train_std_dev
+        if self.train_mean is not None:
+            data += self.train_mean
+        return data
 
 
 def unpickle(filename):

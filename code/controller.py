@@ -2,6 +2,7 @@
 import sys
 import json
 import matplotlib.pyplot as plt
+import numpy as np
 
 import data_processor
 import layers
@@ -39,7 +40,7 @@ def create_model_from_dict(config_dict, input_shape):
             act_class = getattr(layers, str(model_dict['activation']))
             act = act_class(
                 input_layer=dense,
-                name=str(model_dict['activation'])+str(idx + 1)
+                name=str(model_dict['activation']) + str(idx + 1)
             )
             output_layer = act
         if output_layer is None:
@@ -120,7 +121,7 @@ def main(config_json_file):
             num_epochs=config_dict['num_epochs'],
             val_X=val_x,
             val_Y=val_y,
-            print_acc=config_dict['print_acc'],
+            print_loss=config_dict['print_acc'],
             save_dir=config_dict['save_dir']
         )
         print("Done.")
@@ -159,9 +160,138 @@ def main(config_json_file):
             print("Plots have been displayed.")
 
 
+def create_rnn_model(sequence_len, input_dim, output_dim_train, output_dim_val, num_hidden_units, batch_size, val_fraction, lr, num_epochs, activation,
+                     show_plots):
+    data_store = data_processor.RNNDataStore()
+    data_store.load_data()
+    (train_x, train_y), (val_x, val_y) = data_store.get_data(
+        sequence_len,
+        input_dim,
+        output_dim_train,
+        output_dim_val,
+        val_fraction=val_fraction,
+        min_zero_max_one=True
+    )
+
+    input_shape = (batch_size, sequence_len, input_dim)
+
+    print("\nCreating model...")
+    simple_rnn = layers.SimpleRNN(
+        num_units=num_hidden_units,
+        activation=activation,
+        input_shape=input_shape,
+        name='simple_rnn_1'
+    )
+    dense = layers.Dense(
+        num_units=output_dim_train,
+        input_layer=simple_rnn,
+        name='dense_1'
+    )
+    activation = getattr(layers, activation)(
+        input_layer=dense,
+        name='act_1'
+    )
+    model = models.MLP(
+        input_layer=simple_rnn,
+        output_layer=activation,
+        loss=layers.MeanSquaredError(),
+        log_file='../results/log_rnn.csv',
+        name='rnn_model'
+    )
+    print("Done.")
+
+    if model is not None:
+        print("\nTraining model...")
+        train_loss_list, val_loss_list = model.train(
+            X=train_x,
+            Y=train_y,
+            lr=lr,
+            batch_size=batch_size,
+            num_epochs=num_epochs,
+            is_classification=False,
+            val_X=val_x,
+            val_Y=val_y,
+            print_loss=False,
+            save_dir=None
+        )
+        print("Done.")
+
+        min_val_loss = min(val_loss_list)
+        epoch_idx = val_loss_list.index(min_val_loss)
+        print("Minimum validation loss is " +
+              str(min_val_loss) +
+              " at epoch #" +
+              str(epoch_idx + 1) +
+              ". Training loss at that epoch is " +
+              str(train_loss_list[epoch_idx]))
+
+        # print("Calculating test accuracy...")
+        # test_acc = util.get_accuracy(test_y, model.predict_classes(test_x))
+        # print("Test accuracy after " +
+        #       str(config_dict['num_epochs']) +
+        #       " epochs is " +
+        #       str(test_acc) + ".")
+
+        original_train = data_store.restore_data(np.reshape(train_y, np.product(train_y.shape)))
+        predicted_train = data_store.restore_data(np.reshape(model.forward_pass(train_x), np.product(train_y.shape)))
+
+        original_val = data_store.restore_data(np.reshape(val_y, np.product(val_y.shape)))
+        predicted_val = data_store.restore_data(
+            np.reshape(
+                util.get_predictions(model, val_x, val_y.shape[1]),
+                np.product(val_y.shape)
+            )
+        )
+
+        print("After " + str(num_epochs) + ":")
+        print("MSE for predictions on training set: " + str(util.mse(original_train, predicted_train)))
+        print("MSE for predictions on validation set: " + str(util.mse(original_val, predicted_val)))
+
+        if show_plots:
+            plot_sequences(
+                [train_loss_list, val_loss_list],
+                ['Training Loss', 'Validation Loss'],
+                'Learning Curve',
+                '# Epochs',
+                'Loss'
+            )
+            plot_sequences(
+                [original_train, predicted_train],
+                ['Original Values', 'Predicted Values'],
+                'Training Performance',
+                'Value #',
+                'Value'
+            )
+            plot_sequences(
+                [original_val, predicted_val],
+                ['Original Values', 'Predicted Values'],
+                'Validation Performance',
+                'Value #',
+                'Value'
+            )
+            print("Plots have been displayed.")
+
+        return (original_train, predicted_train), \
+               (original_val, predicted_val)
+
+
 if __name__ == '__main__':
     if len(sys.argv) > 1:
         config_file = str(sys.argv[1])
     else:
         config_file = 'config.json'
     main(config_file)
+
+
+def plot_sequences(sequence_list, label_list, title, xlabel, ylabel):
+    for idx, sequence in enumerate(sequence_list):
+        plot_obj, = plt.plot(
+            range(1, len(sequence) + 1),
+            sequence,
+            label=label_list[idx]
+        )
+    plot_obj.axes.set_xlabel(xlabel)
+    plot_obj.axes.set_ylabel(ylabel)
+    plt.legend(ncol=1, fancybox=True, shadow=True)
+    plt.title(title)
+    plt.show(block=True)

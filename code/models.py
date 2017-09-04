@@ -253,22 +253,23 @@ class MLP:
         self.log_file = log_file
         self.num_classes = output_layer.get_output_shape()[1]
 
-    def train(self, X, Y, lr, batch_size, num_epochs, val_X=None, val_Y=None
-              , print_acc=True, save_dir=None):
+    def train(self, X, Y, lr, batch_size, num_epochs, is_classification=False, val_X=None, val_Y=None
+              , print_loss=True, save_dir=None):
         """
         Train the model using 'X' as training data and 'Y' as labels
-        :param print_acc: Print accuracy after each epoch if True
+        :param print_loss: Print loss after each epoch if True
         :param X: numpy array of feature vectors
         :param Y: list of actuals label indices
         :param lr:  learning rate float (> 0)
         :param batch_size:  int (> 0)
         :param num_epochs:  int (>= 0)
+        :param is_classification: True is the task is that of classification
         :param val_X:   numpy array of feature vectors for validation set
                         No validation performed if this is None
         :param val_Y:   class labels for validation set
                         Used only if val_X is not None
         :param save_dir: Save best model if this is not None
-        :return Tuple of best validation accuracy, training accuracy at that epoch and the epoch no.
+        :return List of training losses and validation losses after each epoch
         """
 
         if save_dir is not None:
@@ -280,54 +281,59 @@ class MLP:
 
         print("Starting training...")
 
-        best_val_acc = 0
+        best_val_loss = float('inf')
 
-        util.log(self.log_file, "epoch,train_acc,val_acc")
+        util.log(self.log_file, "epoch,train_loss,val_loss")
 
-        train_acc_list = []
-        val_acc_list = []
+        train_loss_list = []
+        val_loss_list = []
 
         for epoch_idx in tqdm(range(num_epochs)):
-            if print_acc:
+            if print_loss:
                 print("Performing epoch #" + str(epoch_idx + 1))
 
             # Shuffle training data and labels
             perm = np.random.permutation(n)
-            X = X[perm, :]
+            X = X[perm]
             Y = Y[perm]
+
+            if is_classification:
+                Y = util.to_categorical(Y, self.num_classes)
+                if val_Y is not None:
+                    val_Y = util.to_categorical(val_Y, self.num_classes)
 
             for init_idx in tqdm(range(0, n, batch_size)):
                 y = Y[init_idx:init_idx + batch_size]
-                x = X[init_idx:init_idx + batch_size, :]
-                y_c = util.to_categorical(y, self.num_classes)
+                x = X[init_idx:init_idx + batch_size]
+
                 o = self.forward_pass(x)
 
                 # Perform back propagation on the network
-                grad = self.loss.get_gradient(y_c, o)
+                grad = self.loss.get_gradient(y, o)
                 for layer in reversed(self.layers):
                     grad = layer.back_propagation(grad, lr)
 
-            train_acc = util.get_accuracy(Y, self.predict_classes(X))
-            train_acc_list.append(train_acc)
+            train_loss = np.mean(self.loss.get_loss_value(Y, self.forward_pass(X)))
+            train_loss_list.append(train_loss)
 
-            log_str = str(epoch_idx + 1) + "," + str(train_acc)
-            if print_acc:
-                print("Training accuracy: " + str(train_acc))
+            log_str = str(epoch_idx + 1) + "," + str(train_loss)
+            if print_loss:
+                print("Training loss: " + str(train_loss))
 
-            if val_X is not None and val_Y is not None:
-                val_acc = util.get_accuracy(val_Y, self.predict_classes(val_X))
-                val_acc_list.append(val_acc)
+            if val_X is not None and val_Y is not None and len(val_X) > 0 and len(val_Y) > 0:
+                val_loss = np.mean(self.loss.get_loss_value(val_Y, util.get_predictions(self, val_X, val_Y.shape[1])))
+                val_loss_list.append(val_loss)
 
-                log_str = log_str + "," + str(val_acc)
-                if print_acc:
-                    print("Validation accuracy: " + str(val_acc))
-                if val_acc > best_val_acc:
-                    best_val_acc = val_acc
+                log_str = log_str + "," + str(val_loss)
+                if print_loss:
+                    print("Validation loss: " + str(val_loss))
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
                     if save_dir is not None:
                         self.save_model_weights(weights_file)
 
             util.log(self.log_file, log_str)
-            if print_acc:
+            if print_loss:
                 print("\n------------------------------------\n")
 
         print("Training completed.")
@@ -335,7 +341,7 @@ class MLP:
             print("Saving model...")
             self.save_model_weights(weights_file)
             print("Done.")
-        return train_acc_list, val_acc_list
+        return train_loss_list, val_loss_list
 
     def forward_pass(self, X):
         """

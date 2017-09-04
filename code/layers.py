@@ -1,5 +1,8 @@
 import h5py
 import numpy as np
+import sys
+
+thismodule = sys.modules[__name__]
 
 
 class Layer:
@@ -192,6 +195,128 @@ class Dense(Layer):
         return return_dict
 
 
+# noinspection PyPep8Naming
+class SimpleRNN(Layer):
+    """
+    Simple recurrent layer
+    """
+
+    def __init__(self, num_units, activation='Sigmoid', *args, **kwargs):
+        """
+        Initialization of the recurrent layer
+        :param num_units: Number of units in this layer
+        :param input_shape: Tuple of format (batch_size, sequence_length, num_dimensions)
+        """
+        Layer.__init__(self, *args, **kwargs)
+        self.h = num_units
+
+        weight_shape = (self.h, self.input_shape[2])
+        self.w = np.random.standard_normal(weight_shape) * np.sqrt(2.0 / self.input_shape[2])
+        r_weight_shape = (self.h,)
+        self.rw = np.zeros(r_weight_shape)  # recurrent weights
+        self.b = np.zeros(r_weight_shape)  # bias weights
+
+        self.activation = activation
+        act_class = getattr(thismodule, activation)
+        self.act_instances = []
+        for ii in range(self.input_shape[1]):
+            self.act_instances.append(act_class(
+                input_shape=self.get_output_shape(),
+                name=self.name + activation + str(ii + 1)
+            ))
+
+    def get_output_shape(self):
+        """
+        Return the output shape of this layer
+        :return: tuple
+        """
+        output_shape = (self.input_shape[0], self.h)
+        return output_shape
+
+    def forward_pass(self, X):
+        """
+        Perform forward pass on the input
+        :param X: input numpy array (N x T X D)
+        :return: numpy array - (N x H)
+        """
+        self.X = np.copy(X)
+        O = np.zeros((self.X.shape[0], self.h))
+        for ii in range(self.input_shape[1]):
+            H = np.dot(X[:, ii, :], np.transpose(self.w))
+            O = H + np.dot(O, np.diag(self.rw)) + self.b
+            O = self.act_instances[ii].forward_pass(O)
+        return O
+
+    def back_propagation(self, d, lr):
+        """
+        Computes gradients and updates the weights of this layer
+        :param d:   Gradients being passed back (N x H)
+        :param lr:  Learning rate
+        :return: N x T x D numpy array of gradients
+        """
+
+        new_d = np.zeros(self.X.shape)
+        d_w = np.zeros(self.w.shape)
+        d_rw = np.zeros(self.rw.shape)
+        d_b = np.zeros(self.b.shape)
+
+        for ii in reversed(range(self.input_shape[1])):
+            d = self.act_instances[ii].back_propagation(d, lr)
+
+            new_d[:, ii, :] = np.dot(d, self.w)
+            d_w += np.dot(np.transpose(d), self.X[:, ii, :])
+            d_b += np.sum(d, axis=0)
+            if ii > 0:
+                d_rw += np.sum(np.multiply(d, self.act_instances[ii-1].Y), axis=0)
+
+            d = np.dot(d, np.diag(self.rw))
+
+        d_w = d_w / self.input_shape[0]
+        d_b = d_b / self.input_shape[0]
+        d_rw = d_rw / self.input_shape[0]
+
+        self.w -= lr * d_w
+        self.b -= lr * d_b
+        self.rw -= lr * d_rw
+
+        return new_d
+
+    def save_weights(self, w_file_obj):
+        """
+        Save weights of this layer instance in the given `filepath`
+        :param w_file_obj: h5py File object
+        :return:
+        """
+        layer_grp = w_file_obj.create_group(self.name)
+        layer_grp.create_dataset('w', self.w.shape, 'f', self.w)
+        layer_grp.create_dataset('rw', self.rw.shape, 'f', self.rw)
+        layer_grp.create_dataset('b', self.b.shape, 'f', self.b)
+
+    def load_weights(self, filepath):
+        """
+        Load weights of this layer from the given `filepath`
+        :param filepath: Name of the file that contains the weights
+        :return:
+        """
+        with h5py.File(filepath, 'r') as w_file:
+            layer_grp = w_file[self.name]
+            self.w = layer_grp['w'][...]
+            self.w = layer_grp['rw'][...]
+            self.b = layer_grp['b'][...]
+
+    def get_config(self):
+        """
+        Return dict of this layers configuration.
+        Dict contains all parameters required to re-instantiate this layer.
+        :return: Dict with keys like 'name', 'type' and other required parameters
+                 Can be passed as **dict to __init__()
+        """
+        return_dict = Layer.get_config(self)
+        return_dict['num_units'] = self.h
+        return_dict['activation'] = self.activation
+        return return_dict
+
+
 class Softmax(Activation):
     """
     Softmax activation layer
@@ -253,7 +378,7 @@ class ReLU(Activation):
         :return: numpy array of shape same as input
         """
         self.Y = np.copy(X)
-        self.Y[X <= 0] = 0
+        self.Y[X < 0] = 0
         return self.Y
 
     def back_propagation(self, d, lr):
@@ -262,7 +387,30 @@ class ReLU(Activation):
         :param lr:  Learning rate
         :return: N x D numpy array of gradients
         """
-        return (self.Y > 0) * d
+        return (self.Y >= 0) * d
+
+
+class Identity(Activation):
+    """
+    Identity activation layer
+    """
+
+    def forward_pass(self, X):
+        """
+        Perform forward pass on the input
+        :param X: input numpy array
+        :return: numpy array of shape same as input
+        """
+        self.Y = np.copy(X)
+        return self.Y
+
+    def back_propagation(self, d, lr):
+        """
+        :param d:   Gradients being passed back (N x D)
+        :param lr:  Learning rate
+        :return: N x D numpy array of gradients
+        """
+        return d
 
 
 class LeakyReLU(Activation):
@@ -339,17 +487,17 @@ class Loss:
 
     def get_loss_value(self, Y, O):
         """
-        :param Y: Actual outputs (categorical) (N x C)
-        :param O: Predicted outputs (N x C)
+        :param Y: Actual outputs (N x D)
+        :param O: Predicted outputs (N x D)
         :return: Column vector (N x 1) of loss values
         """
         pass
 
     def get_gradient(self, Y, O):
         """
-        :param Y: Actual outputs (categorical) (N x C)
-        :param O: Predicted outputs (N x C)
-        :return:   Gradient numpy array (N x C)
+        :param Y: Actual outputs (N x D)
+        :param O: Predicted outputs (N x D)
+        :return:   Gradient numpy array (N x D)
         """
         pass
 
@@ -381,6 +529,7 @@ class Hinge(Loss):
     Hinge loss
     """
 
+    # noinspection PyUnresolvedReferences,PyTypeChecker
     def get_loss_value(self, Y, O):
         """
         :param Y: Actual outputs (categorical) (N x C)
@@ -405,3 +554,25 @@ class Hinge(Loss):
         grad[l > 0] = 1
         grad[range(O.shape[0]), np.argmax(Y, axis=1)] = -1 * (np.sum(grad, axis=1) - 1)
         return grad
+
+
+class MeanSquaredError(Loss):
+    """
+    Mean squared error as the loss layer
+    """
+
+    def get_loss_value(self, Y, O):
+        """
+        :param Y: Actual outputs (N x D)
+        :param O: Predicted outputs (N x D)
+        :return: Column vector (N x 1) of loss values
+        """
+        return np.c_[np.mean(np.power(Y - O, 2), axis=1)] / 2
+
+    def get_gradient(self, Y, O):
+        """
+        :param Y: Actual outputs (N x D)
+        :param O: Predicted outputs (N x D)
+        :return:   Gradient numpy array (N x D)
+        """
+        return (O - Y) / O.shape[0]
