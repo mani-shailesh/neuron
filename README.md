@@ -1,6 +1,6 @@
-# aml-lab-1
-[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/mani-shailesh/aml-lab-1/blob/master/LICENSE.md)
-[![Category](https://img.shields.io/badge/Category-Coursework-ff69b4.svg)](https://github.com/mani-shailesh/aml-lab-1)
+# neuron
+[![license](https://img.shields.io/github/license/mashape/apistatus.svg?maxAge=2592000)](https://github.com/mani-shailesh/neuron/blob/master/LICENSE.md)
+[![Category](https://img.shields.io/badge/Category-Coursework-ff69b4.svg)](https://github.com/mani-shailesh/neuron)
 
 This is a very basic and easy to use machine learning (especially MLP) framework where you build your network by putting together few layers and then train it. You can save the network, load it later and train it further or use it for predictions. 
 
@@ -43,17 +43,3 @@ Some sample configuration files have been provided in the `code/sample_config` d
 
 
 The `controller` script uses CIFAR-10 dataset by default which it reads on the go from the `data` directory. However, the framework in itself is independent of the data source. You can use any dataset by implementing your own `DataStore` class like the one in `data_processor.py`.
-
-Follwing is a brief description of the modules:
-
-`data_processor.py`   -   This module deals with all the data related operations. It contains the definition of `DataStore` class responsible for reading the data and applying pre-processing operations on it. `DataStore.load_data()` can be used to get raw data loaded from the 'data' directory.
-
-`layers.py` -   This module contains all the basic layers which are building blocks for a MLP model. All layers inherit from the base class `Layer`. This also contains the loss functions which inherit from the base class `Loss`.
-
-`models.py` -   This module contains the two basic models supported by this platform which are `RMLR`, regularized multinomial logistic regression and `MLP`, multi layer perceptron. These classes expose basic and consistent methods like `train()` and `predict_classes()`.
- 
- `util.py`  -   This module contains utility functions which are independent of any other module like `log()` and `get_accuracy()`.
- 
- `controller.py`    -   This is the driver script which puts together layers or models as per the configuration provided by the user.
- 
- All modules are thoroughly documented and you can always refer to that for more details.
