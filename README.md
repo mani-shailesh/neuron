@@ -8,6 +8,7 @@ Getting Started:
 
 To just get started and perform some training, follow these simple steps:
 
+1.  Download and extract files from http://www.cs.toronto.edu/~kriz/cifar-10-python.tar.gz in the `data` directory.
 1.  cd into `code` directory
 2.  Prepare your configuration file or use one from the provided samples in `code/sample_config`. More details on each option in this configuration file are available later in this readme file.
 3.  run `python controller.py config_file_path` in the terminal. If you do not provide `config_file_path`, it uses 'config.json' in the working directory.
